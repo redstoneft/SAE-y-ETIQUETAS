@@ -374,10 +374,32 @@ async function obtenerPedidoCompleto(id) {
   };
 }
 
+/** Elimina un pedido y, por cascada (FK on delete cascade), sus líneas,
+ *  validaciones, factura SAE, etiquetas y cola de impresión. */
+async function eliminarPedido(id) {
+  if (!supabase) { console.log(`[dry] eliminar pedido ${id}`); return; }
+  const { error } = await supabase.from("pedidos").delete().eq("id", id);
+  if (error) throw new Error(`Error eliminando pedido: ${error.message}`);
+}
+
+/** Elimina TODOS los pedidos (con cascada). Devuelve cuántos había. */
+async function eliminarTodosLosPedidos() {
+  if (!supabase) { console.log("[dry] eliminar todos los pedidos"); return 0; }
+  const { data: ids } = await supabase.from("pedidos").select("id");
+  const n = (ids || []).length;
+  // Supabase exige un filtro para borrar; este matchea todo.
+  const { error } = await supabase.from("pedidos")
+    .delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (error) throw new Error(`Error eliminando pedidos: ${error.message}`);
+  return n;
+}
+
 module.exports = {
   HAS_CREDS,
   getClienteId,
   pedidoExiste,
+  eliminarPedido,
+  eliminarTodosLosPedidos,
   guardarPedido,
   guardarValidaciones,
   encolarFacturaSAE,

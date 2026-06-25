@@ -148,6 +148,31 @@ app.get("/api/pedidos/:id", async (req, res) => {
 });
 
 /**
+ * Elimina TODOS los pedidos guardados (con cascada). Va antes del :id para
+ * que Express no lo confunda con un id.
+ */
+app.delete("/api/pedidos", async (req, res) => {
+  try {
+    const n = await db.eliminarTodosLosPedidos();
+    cache.clear();
+    res.json({ ok: true, eliminados: n });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/** Elimina un pedido por id (con cascada a sus líneas, etiquetas, etc.). */
+app.delete("/api/pedidos/:id", async (req, res) => {
+  try {
+    await db.eliminarPedido(req.params.id);
+    cache.delete(req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
  * Genera el ARCHIVO DE IMPORTACIÓN de factura para SAE (.xlsx).
  * El usuario lo descarga y lo importa en SAE -> SAE crea la factura
  * SIN timbrar con su propia lógica (folios, impuestos, addenda).

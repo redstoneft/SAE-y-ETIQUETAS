@@ -481,6 +481,7 @@
 <div class="drawer" id="hist-drawer">
   <div class="drawer-h"><b>Historial de pedidos</b><button id="close-hist">×</button></div>
   <div class="search-box"><input type="text" id="hist-search" placeholder="Buscar por número de OC…"></div>
+  <div style="padding:0 16px 8px"><button class="btn" id="hist-del-all" style="width:100%;border:1px solid var(--stop);color:var(--stop);font-size:12px;padding:8px">Eliminar todas las órdenes</button></div>
   <div class="drawer-body" id="hist-body"></div>
 </div>
 
@@ -768,6 +769,7 @@ async function cargarHistorial(q){
     <div class="ax">${estLabel[i.estatus]||i.estatus} · ${money(i.total||0)} · ${i.etiquetas_impresas||0}/${i.etiquetas_total||0} etiquetas</div>
     <div class="atime">${new Date(i.creado_en).toLocaleString('es-MX')}</div></div>
     <button class="hist-btn" style="background:var(--fog);color:var(--ink);align-self:center" onclick="reabrir('${i.id||''}','${i.num_orden_compra}')">Ver</button>
+    <button class="hist-btn" style="background:var(--stop-bg);color:var(--stop);align-self:center" onclick="eliminarOC('${i.id||''}','${i.num_orden_compra}')">Eliminar</button>
     </div>`).join(''):'<div class="empty"><div class="e">○</div>Sin resultados</div>';
 }
 async function reabrir(id,oc){
@@ -784,6 +786,29 @@ async function reabrir(id,oc){
     document.getElementById('hist-drawer').classList.remove('open');
     window.scrollTo({top:0,behavior:'smooth'});
   }catch(e){alert('No se pudo contactar el backend: '+e.message);}
+}
+async function eliminarOC(id,oc){
+  if(!API_BASE){alert('Eliminar funciona con el backend conectado.');return;}
+  if(!id){alert('Este pedido no tiene id.');return;}
+  if(!confirm('¿Eliminar la OC '+oc+'?\nSe borra el pedido, sus líneas y etiquetas. No se puede deshacer.')) return;
+  try{
+    const r=await fetch(API_BASE+'/api/pedidos/'+id,{method:'DELETE'});
+    const d=await r.json();
+    if(!r.ok){alert(d.error||'No se pudo eliminar');return;}
+    cargarHistorial(document.getElementById('hist-search').value.trim());
+  }catch(e){alert('Error: '+e.message);}
+}
+async function eliminarTodasOC(){
+  if(!API_BASE){alert('Eliminar funciona con el backend conectado.');return;}
+  if(!confirm('¿Eliminar TODAS las órdenes guardadas?\nEsto borra todos los pedidos, líneas y etiquetas. No se puede deshacer.')) return;
+  if(!confirm('Confirma de nuevo: se borrarán TODAS las órdenes de forma permanente.')) return;
+  try{
+    const r=await fetch(API_BASE+'/api/pedidos',{method:'DELETE'});
+    const d=await r.json();
+    if(!r.ok){alert(d.error||'No se pudo eliminar');return;}
+    alert('Órdenes eliminadas: '+(d.eliminados||0));
+    cargarHistorial('');
+  }catch(e){alert('Error: '+e.message);}
 }
 
 /* ===== Modal de impresión con avance ===== */
@@ -1020,6 +1045,7 @@ document.getElementById('close-alerts').onclick=()=>{ab.classList.remove('open')
 ab.onclick=()=>{ab.classList.remove('open');ad.classList.remove('open');};
 const hb=document.getElementById('hist-bg'),hd=document.getElementById('hist-drawer');
 document.getElementById('open-hist').onclick=()=>{hb.classList.add('open');hd.classList.add('open');cargarHistorial('');};
+document.getElementById('hist-del-all').onclick=eliminarTodasOC;
 document.getElementById('close-hist').onclick=()=>{hb.classList.remove('open');hd.classList.remove('open');};
 hb.onclick=()=>{hb.classList.remove('open');hd.classList.remove('open');};
 let htim=null;
