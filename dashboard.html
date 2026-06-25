@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embarque · Pedidos Walmart → SAE → Zebra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Archivo+Narrow:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#10243e;          /* azul tinta profundo */
+    --ink-2:#1c3a5e;
+    --steel:#64748b;        /* gris acero, secundario */
+    --steel-l:#94a3b8;
+    --fog:#f1f4f8;          /* fondo app */
+    --paper:#ffffff;
+    --line:#dde4ed;
+    --line-2:#eef2f7;
+    --go:#0f7d4d;           /* verde paso */
+    --go-bg:#e3f3ea;
+    --stop:#c2410c;         /* naranja quemado: bloqueo */
+    --stop-bg:#fcece3;
+    --wait:#a16207;         /* ambar: en proceso */
+    --wait-bg:#fbf3df;
+    --focus:#2563eb;
+    --amber:#f5a623;        /* acento Walmart-ish */
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+    --sans:'Archivo',system-ui,sans-serif;
+    --narrow:'Archivo Narrow','Archivo',sans-serif;
+    --r:10px;
+    --sh:0 1px 2px rgba(16,36,62,.04),0 2px 8px rgba(16,36,62,.04);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{font-family:var(--sans);background:var(--fog);color:var(--ink);
+    -webkit-font-smoothing:antialiased;line-height:1.45;font-size:14px}
+  button{font-family:inherit;cursor:pointer;border:none;background:none}
+  button:focus-visible,[tabindex]:focus-visible,input:focus-visible{
+    outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+  ::selection{background:var(--amber);color:var(--ink)}
+
+  /* ===== Header ===== */
+  header{background:linear-gradient(180deg,var(--ink),var(--ink-2));
+    color:#fff;padding:0 24px;height:60px;display:flex;align-items:center;
+    justify-content:space-between;position:sticky;top:0;z-index:30;
+    box-shadow:0 1px 0 rgba(0,0,0,.2)}
+  .brand{display:flex;align-items:center;gap:14px}
+  .brand .logo{width:30px;height:30px;border-radius:7px;
+    background:linear-gradient(135deg,var(--amber),#e8890b);
+    display:grid;place-items:center;font-weight:800;color:var(--ink);font-size:16px;
+    box-shadow:0 2px 8px rgba(245,166,35,.3)}
+  .brand b{font-size:17px;font-weight:700;letter-spacing:-.02em}
+  .brand .path{font-family:var(--mono);font-size:11px;color:#8aa3c4;
+    padding-left:14px;border-left:1px solid rgba(255,255,255,.15);margin-left:2px}
+  .conn{display:flex;align-items:center;gap:8px;font-family:var(--mono);
+    font-size:11px;color:#8aa3c4}
+  .dot{width:7px;height:7px;border-radius:50%;background:#34d399;
+    box-shadow:0 0 0 3px rgba(52,211,153,.2)}
+
+  /* ===== KPI strip ===== */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;
+    background:var(--line);border-bottom:1px solid var(--line)}
+  .kpi{background:var(--paper);padding:16px 20px;position:relative;transition:.15s}
+  .kpi:hover{background:#fbfcfe}
+  .kpi .n{font-size:30px;font-weight:700;font-family:var(--narrow);
+    letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+  .kpi .l{font-size:10.5px;color:var(--steel);text-transform:uppercase;
+    letter-spacing:.07em;margin-top:6px;font-weight:600}
+  .kpi.warn .n{color:var(--stop)}
+  .kpi.warn::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:var(--stop)}
+
+  /* ===== Flow band (signature) ===== */
+  .flow{margin:20px 24px 0;background:var(--paper);border:1px solid var(--line);
+    border-radius:var(--r);box-shadow:var(--sh);overflow:hidden}
+  .flow-head{padding:15px 22px;display:flex;justify-content:space-between;
+    align-items:center;border-bottom:1px solid var(--line-2)}
+  .flow-head .ttl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--steel);font-weight:700}
+  .flow-head .oc{font-family:var(--mono);font-size:13px;font-weight:500;
+    background:var(--fog);padding:4px 12px;border-radius:20px;color:var(--ink)}
+  .stations{display:flex;padding:22px 16px 24px}
+  .st{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;
+    position:relative;padding:0 6px}
+  .st::after{content:"";position:absolute;top:21px;left:50%;width:100%;height:3px;
+    background:var(--line);z-index:0}
+  .st:last-child::after{display:none}
+  .st.done::after{background:var(--go)}
+  .st .ic{width:44px;height:44px;border-radius:50%;background:var(--paper);
+    border:3px solid var(--line);display:grid;place-items:center;z-index:1;
+    font-family:var(--mono);font-weight:700;font-size:15px;color:var(--steel-l);
+    transition:.25s;position:relative}
+  .st.done .ic{background:var(--go);border-color:var(--go);color:#fff;
+    box-shadow:0 4px 12px rgba(15,125,77,.25)}
+  .st.now .ic{background:var(--wait-bg);border-color:var(--wait);color:var(--wait);
+    animation:pulse 2s infinite}
+  .st.fail .ic{background:var(--stop);border-color:var(--stop);color:#fff;
+    box-shadow:0 4px 12px rgba(194,65,12,.25)}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(161,98,7,.3)}
+    50%{box-shadow:0 0 0 8px rgba(161,98,7,0)}}
+  .st .t{font-size:12px;font-weight:600;margin-top:11px}
+  .st .s{font-size:10.5px;color:var(--steel);margin-top:3px;font-family:var(--mono)}
+  @media(prefers-reduced-motion:reduce){.st.now .ic{animation:none}}
+
+  /* ===== Body grid ===== */
+  .wrap{display:grid;grid-template-columns:1fr 380px;gap:20px;padding:20px 24px 32px;
+    align-items:start;max-width:1500px}
+  .col{display:flex;flex-direction:column;gap:20px;min-width:0}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);
+    box-shadow:var(--sh);overflow:hidden}
+  .card>h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;
+    padding:14px 20px;border-bottom:1px solid var(--line-2);font-weight:700;
+    color:var(--steel);display:flex;justify-content:space-between;align-items:center}
+  .card>h3 .meta{font-family:var(--mono);font-size:11px;color:var(--steel-l);
+    text-transform:none;letter-spacing:0;font-weight:500}
+  .pad{padding:18px 20px}
+
+  /* drop zone */
+  .drop{border:2px dashed var(--line);border-radius:9px;padding:32px 20px;
+    text-align:center;transition:.18s;background:#fbfcfe;cursor:pointer}
+  .drop:hover{border-color:var(--steel-l);background:#f8fafd}
+  .drop.over{border-color:var(--focus);background:#eef4ff}
+  .drop .up{width:40px;height:40px;margin:0 auto 12px;border-radius:10px;
+    background:var(--ink);display:grid;place-items:center;color:#fff;font-size:20px}
+  .drop b{display:block;font-size:14.5px;font-weight:600;margin-bottom:3px}
+  .drop small{font-size:12px;color:var(--steel)}
+  .demo-row{text-align:center;margin-top:12px}
+
+  /* line table */
+  .tbl-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{text-align:left;font-size:10px;text-transform:uppercase;
+    letter-spacing:.06em;color:var(--steel);padding:10px 12px;font-weight:700;
+    background:var(--line-2);position:sticky;top:0}
+  thead th.r{text-align:right}
+  tbody td{padding:11px 12px;border-bottom:1px solid var(--line-2);
+    font-variant-numeric:tabular-nums}
+  tbody tr:hover{background:#fbfcfe}
+  tbody tr:last-child td{border-bottom:none}
+  td.sku{font-family:var(--mono);font-weight:700;color:var(--ink)}
+  td.gtin{font-family:var(--mono);font-size:11.5px;color:var(--steel)}
+  td.r{text-align:right;font-family:var(--mono)}
+  .boxbadge{display:inline-flex;align-items:center;gap:5px;background:var(--ink);
+    color:#fff;font-family:var(--mono);font-size:11px;font-weight:600;
+    padding:2px 9px;border-radius:20px}
+  .boxbadge .x{opacity:.55;font-size:9px}
+
+  /* validation */
+  .v{display:flex;gap:11px;padding:12px 14px;border-radius:8px;margin-bottom:9px;
+    font-size:13px;align-items:flex-start;line-height:1.4}
+  .v:last-child{margin-bottom:0}
+  .v.ok{background:var(--go-bg);color:#0c5c39}
+  .v.err{background:var(--stop-bg);color:#9a3412}
+  .v .vi{width:20px;height:20px;border-radius:50%;flex-shrink:0;display:grid;
+    place-items:center;font-size:12px;font-weight:700;color:#fff;margin-top:1px}
+  .v.ok .vi{background:var(--go)}
+  .v.err .vi{background:var(--stop)}
+  .v small{display:block;opacity:.75;font-size:11.5px;margin-top:2px}
+
+  /* actions */
+  .acts{display:flex;flex-direction:column;gap:10px}
+  .btn{padding:13px 16px;border:1.5px solid var(--line);border-radius:9px;
+    background:var(--paper);font-size:13.5px;font-weight:600;color:var(--ink);
+    display:flex;align-items:center;gap:12px;transition:.13s;width:100%;text-align:left}
+  .btn:hover:not(:disabled){border-color:var(--ink);transform:translateY(-1px);
+    box-shadow:0 4px 12px rgba(16,36,62,.08)}
+  .btn:active:not(:disabled){transform:translateY(0)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn .step{width:24px;height:24px;border-radius:7px;background:var(--fog);
+    display:grid;place-items:center;font-family:var(--mono);font-size:12px;
+    font-weight:700;color:var(--steel);flex-shrink:0}
+  .btn .arrow{margin-left:auto;color:var(--steel-l);font-size:16px}
+  .btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .btn.primary:hover:not(:disabled){background:var(--ink-2)}
+  .btn.primary .step{background:rgba(255,255,255,.15);color:#fff}
+  .btn.primary .arrow{color:rgba(255,255,255,.6)}
+  .btn.done-btn{background:var(--go-bg);border-color:var(--go);color:#0c5c39}
+  .btn.done-btn .step{background:var(--go);color:#fff}
+
+  /* invoice preview (factura lista para capturar) */
+  .inv{font-size:12.5px}
+  .inv-h{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;padding:14px 18px;
+    background:var(--fog);border-bottom:1px solid var(--line)}
+  .inv-h .f{display:flex;flex-direction:column}
+  .inv-h .f .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--steel);font-weight:700}
+  .inv-h .f .vv{font-family:var(--mono);font-size:12.5px;margin-top:1px;font-weight:500}
+  .inv-h .f.hl .vv{color:var(--stop);font-weight:700}
+  .copyhint{font-size:11px;color:var(--steel);padding:8px 18px;background:#fffbf0;
+    border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:7px}
+
+  /* labels preview */
+  .lblgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .lblcard{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .lblcard .lh{padding:8px 12px;background:var(--fog);font-family:var(--mono);
+    font-size:11px;font-weight:600;display:flex;justify-content:space-between;
+    border-bottom:1px solid var(--line-2)}
+  .lblcard .lp{padding:10px;text-align:center;background:#fff}
+  .lblcard img{max-width:100%;height:auto}
+  .lblmeta{font-size:11px;color:var(--steel);padding:10px 0 0}
+
+  /* history */
+  .hist .it{display:flex;align-items:center;gap:12px;padding:12px 20px;
+    border-bottom:1px solid var(--line-2);font-size:12.5px}
+  .hist .it:last-child{border:none}
+  .hist .it .oc{font-family:var(--mono);font-weight:600;min-width:96px}
+  .hist .it .tx{flex:1;color:var(--steel);font-size:12px}
+  .tag{font-family:var(--mono);font-size:9.5px;font-weight:700;padding:3px 8px;
+    border-radius:5px;text-transform:uppercase;letter-spacing:.03em}
+  .tag.ok{background:var(--go-bg);color:var(--go)}
+  .tag.fail{background:var(--stop-bg);color:var(--stop)}
+  .tag.now{background:var(--wait-bg);color:var(--wait)}
+
+  .empty{text-align:center;color:var(--steel);padding:40px 20px;font-size:13px}
+  .empty .e{font-size:34px;margin-bottom:10px;opacity:.25}
+
+  .modo{font-family:var(--mono);font-size:10px;color:var(--steel-l);
+    text-align:center;padding:12px;letter-spacing:.03em}
+
+  @media(max-width:1000px){
+    .kpis{grid-template-columns:repeat(3,1fr)}
+    .wrap{grid-template-columns:1fr}
+    .stations{overflow-x:auto;padding:20px 8px}
+    .st{min-width:88px}
+  }
+  @media(max-width:560px){
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    header{padding:0 16px}.brand .path{display:none}
+    .wrap{padding:16px}.flow{margin:16px}
+    .lblgrid{grid-template-columns:1fr}
+  }
+
+  .hdr-right{display:flex;align-items:center;gap:14px}
+  .hist-btn,.alert-btn{background:rgba(255,255,255,.1);color:#fff;border-radius:8px;
+    padding:7px 12px;font-size:12px;font-weight:600;display:flex;align-items:center;
+    gap:6px;transition:.13s}
+  .hist-btn:hover,.alert-btn:hover{background:rgba(255,255,255,.2)}
+  .alert-btn{position:relative}
+  .alert-count{background:var(--stop);color:#fff;border-radius:10px;font-size:10px;
+    padding:1px 6px;font-family:var(--mono);font-weight:700}
+  /* editable qty */
+  .qty-edit{width:64px;padding:5px 8px;border:1.5px solid var(--line);border-radius:6px;
+    font-family:var(--mono);font-size:13px;text-align:right;background:#fffdf5}
+  .qty-edit:focus{border-color:var(--focus);outline:none;background:#fff}
+  .qty-diff{font-size:10px;color:var(--stop);font-weight:600;margin-left:4px}
+  /* drawer (alertas / historial) */
+  .drawer-bg{position:fixed;inset:0;background:rgba(16,36,62,.4);z-index:50;
+    display:none;backdrop-filter:blur(2px)}
+  .drawer-bg.open{display:block}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:420px;max-width:90vw;
+    background:var(--paper);z-index:51;transform:translateX(100%);transition:.25s;
+    display:flex;flex-direction:column;box-shadow:-8px 0 24px rgba(16,36,62,.15)}
+  .drawer.open{transform:translateX(0)}
+  .drawer-h{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;
+    justify-content:space-between;align-items:center}
+  .drawer-h b{font-size:15px;font-weight:700}
+  .drawer-h button{font-size:22px;color:var(--steel);line-height:1}
+  .drawer-body{flex:1;overflow-y:auto;padding:8px 0}
+  .search-box{padding:12px 20px;border-bottom:1px solid var(--line-2)}
+  .search-box input{width:100%;padding:9px 12px;border:1.5px solid var(--line);
+    border-radius:8px;font-size:13px;font-family:var(--sans)}
+  .alert-item{padding:13px 20px;border-bottom:1px solid var(--line-2);display:flex;gap:11px}
+  .alert-item .ad{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
+  .alert-item.alta .ad{background:var(--stop)}
+  .alert-item.media .ad{background:var(--wait)}
+  .alert-item.baja .ad{background:var(--steel-l)}
+  .alert-item .at{font-size:13px;font-weight:600;margin-bottom:2px}
+  .alert-item .ax{font-size:11.5px;color:var(--steel);line-height:1.4}
+  .alert-item .atime{font-size:10px;color:var(--steel-l);font-family:var(--mono);margin-top:3px}
+  /* print progress modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(16,36,62,.5);z-index:60;
+    display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--paper);border-radius:14px;width:440px;max-width:92vw;
+    padding:26px;box-shadow:0 12px 40px rgba(16,36,62,.3)}
+  .modal h4{font-size:16px;font-weight:700;margin-bottom:4px}
+  .modal .sub{font-size:12.5px;color:var(--steel);margin-bottom:18px}
+  .prog{height:10px;background:var(--fog);border-radius:6px;overflow:hidden;margin:14px 0 8px}
+  .prog .bar{height:100%;background:linear-gradient(90deg,var(--go),#15a55f);
+    border-radius:6px;transition:.3s;width:0%}
+  .prog-txt{display:flex;justify-content:space-between;font-size:12px;
+    font-family:var(--mono);color:var(--steel)}
+  .modal-btns{display:flex;gap:10px;margin-top:20px}
+  .modal-btns button{flex:1;padding:11px;border-radius:8px;font-size:13px;font-weight:600}
+  .mb-primary{background:var(--ink);color:#fff}
+  .mb-ghost{background:var(--fog);color:var(--ink)}
+  .reprint-row{display:flex;gap:8px;align-items:center;margin-top:14px;
+    padding-top:14px;border-top:1px solid var(--line-2)}
+  .reprint-row input{width:60px;padding:6px 8px;border:1.5px solid var(--line);
+    border-radius:6px;font-family:var(--mono);font-size:13px;text-align:center}
+  .reprint-row label{font-size:12px;color:var(--steel)}
+  .banner{margin:0 24px 0;padding:13px 18px;border-radius:10px;display:none;
+    align-items:center;gap:11px;font-size:13.5px;margin-top:20px}
+  .banner.show{display:flex}
+  .banner.review{background:var(--wait-bg);color:#7a5800;border:1px solid #e8c97a}
+  .banner .bi{font-size:18px}
+
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">E</div>
+    <b>Embarque</b>
+    <span class="path">WALMART → SAE → ZEBRA</span>
+  </div>
+  <div class="hdr-right">
+    <button class="hist-btn" id="open-hist" title="Historial"><span>⊞</span> Historial</button>
+    <button class="alert-btn" id="open-alerts" title="Alertas">
+      <span>◔</span><span class="alert-count" id="alert-count" style="display:none">0</span></button>
+    <div class="conn"><span class="dot"></span><span id="conn">en línea</span></div>
+  </div>
+</header>
+
+<div class="kpis" id="kpis"></div>
+
+<section class="flow" id="flow" style="display:none">
+  <div class="flow-head">
+    <span class="ttl">Recorrido del pedido</span>
+    <span class="oc" id="flow-oc"></span>
+  </div>
+  <div class="stations" id="stations"></div>
+</section>
+
+<div class="wrap">
+  <div class="col">
+    <div class="card">
+      <h3>Cargar pedido<span class="meta">PDF de RetailLink</span></h3>
+      <div class="pad">
+        <div class="drop" id="drop">
+          <div class="up">↑</div>
+          <b>Arrastra el PDF del pedido</b>
+          <small>o haz clic para seleccionarlo</small>
+          <input type="file" id="file" accept="application/pdf" hidden>
+        </div>
+        <div class="demo-row">
+          <button class="btn" style="width:auto;display:inline-flex" id="demo">
+            <span class="step">▸</span>Cargar pedido de ejemplo</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="card-lines" style="display:none">
+      <h3>Líneas del pedido<span class="meta" id="lines-meta"></span></h3>
+      <div class="tbl-wrap"><table id="tbl"></table></div>
+    </div>
+
+    <div class="card" id="card-invoice" style="display:none">
+      <h3>Factura lista para capturar<span class="meta">revisar y timbrar en SAE</span></h3>
+      <div class="inv" id="invoice"></div>
+    </div>
+
+    <div class="card" id="card-labels" style="display:none">
+      <h3>Etiquetas Zebra<span class="meta" id="labels-meta"></span></h3>
+      <div class="pad">
+        <div class="lblgrid" id="lblgrid"></div>
+        <p class="lblmeta" id="lblmeta"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card">
+      <h3>Validación</h3>
+      <div class="pad" id="validation">
+        <div class="empty"><div class="e">○</div>Carga un pedido para validarlo</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Acciones</h3>
+      <div class="pad"><div class="acts" id="acts"></div></div>
+    </div>
+
+    <div class="card">
+      <h3>Historial reciente</h3>
+      <div class="hist" id="hist"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modo" id="modo"></div>
+
+<script>
+const API_BASE = "";
+const PRINTER_IP = "192.168.1.50";  // IP de tu Zebra en la red (cámbiala)
+const LABELARY = "https://api.labelary.com/v1/printers/8dpmm/labels/3.31x4.0/";
+const DEMO = {"cliente":"WALMART","encabezado":{"num_orden_compra":"8834970382","fecha_pedido":"2026-06-18","fecha_envio":"2026-06-18","fecha_cancelacion":"2026-06-25","tipo_orden":"0033","moneda":"MXN","departamento":"00014","evento_promocional":"POS REPLEN","condicion_pago":"NET 90 based on Receipt of Goods","num_proveedor_walmart":"826370140","nombre_proveedor":"FUTUREENTS TECH SA DE CV","formato_tienda":"BODEGA","cedis_nombre":"CD NAVE 1 SECOS 7494","cedis_destino":"7494","gln_destino":"7507003116675","instrucciones":"NO PRETICKET"},"lineas":[{"num_linea":"001","sku_walmart":"101581796","sku_interno":"SIC24G","gtin":"7500462718718","color":"GRIS","cantidad":168,"uom":"EA","piezas_por_caja":6,"cajas":28,"precio_unitario":120.45,"total_linea":20235.6},{"num_linea":"002","sku_walmart":"101581797","sku_interno":"SIC20G","gtin":"7500462718695","color":"GRIS","cantidad":108,"uom":"EA","piezas_por_caja":6,"cajas":18,"precio_unitario":98.2,"total_linea":10605.6},{"num_linea":"003","sku_walmart":"101581798","sku_interno":"SIC28G","gtin":"7500462718817","color":"GRIS","cantidad":102,"uom":"EA","piezas_por_caja":6,"cajas":17,"precio_unitario":146,"total_linea":14892},{"num_linea":"004","sku_walmart":"101581799","sku_interno":"CIC16G","gtin":"7500462719005","color":"GRIS","cantidad":36,"uom":"EA","piezas_por_caja":4,"cajas":9,"precio_unitario":147.15,"total_linea":5297.4},{"num_linea":"005","sku_walmart":"101581800","sku_interno":"OIC24G","gtin":"7500462719036","color":"GRIS","cantidad":80,"uom":"EA","piezas_por_caja":4,"cajas":20,"precio_unitario":232,"total_linea":18560},{"num_linea":"006","sku_walmart":"101581801","sku_interno":"BIC24G","gtin":"7500462719050","color":"GRIS","cantidad":72,"uom":"EA","piezas_por_caja":4,"cajas":18,"precio_unitario":205,"total_linea":14760}],"totales_pdf":{"total":84350.6,"total_lineas":6,"total_unidades":566},"control":{"suma_extendido_calculado":84350.6,"coincide_total":true,"suma_unidades_calculado":566,"coincide_unidades":true,"num_lineas_calculado":6,"coincide_num_lineas":true,"total_cajas_etiquetas":110}};
+
+let pedido = null, paso = 0;
+const hist = [
+  {oc:"6283703667", st:"ok",  tx:"Factura capturada · 92 etiquetas impresas"},
+  {oc:"8821145590", st:"now", tx:"Pendiente de revisar en SAE"},
+  {oc:"8819923011", st:"fail",tx:"Precio fuera de lista autorizada"},
+];
+
+const $=s=>document.querySelector(s);
+const fmt=n=>new Intl.NumberFormat('es-MX').format(n);
+const money=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n);
+
+function validar(p){
+  const e=[];
+  if(!p.control.coincide_total) e.push({sev:'err',d:'El total calculado no coincide con el del PDF'});
+  if(!p.control.coincide_num_lineas) e.push({sev:'err',d:'El número de líneas no coincide con el del PDF'});
+  return {valido:e.length===0, errores:e};
+}
+
+function kpis(){
+  const d=[
+    {n:pedido?1:0,l:'Pedidos nuevos'},
+    {n:12,l:'Procesados hoy'},
+    {n:1,l:'Con errores',w:true},
+    {n:8,l:'Por capturar en SAE'},
+    {n:pedido&&paso>=3?pedido.control.total_cajas_etiquetas:0,l:'Etiquetas pendientes'},
+  ];
+  $('#kpis').innerHTML=d.map(k=>`<div class="kpi ${k.w?'warn':''}">
+    <div class="n">${k.n}</div><div class="l">${k.l}</div></div>`).join('');
+}
+
+function flow(){
+  if(!pedido){$('#flow').style.display='none';return;}
+  $('#flow').style.display='block';
+  $('#flow-oc').textContent='OC '+pedido.encabezado.num_orden_compra;
+  const v=pedido._v;
+  const sts=[
+    {t:'Extraído',s:pedido.lineas.length+' líneas',done:true},
+    {t:'Validado',s:v.valido?'sin errores':v.errores.length+' errores',done:v.valido,fail:!v.valido},
+    {t:'Capturado',s:'en SAE',done:paso>=2},
+    {t:'Etiquetas',s:pedido.control.total_cajas_etiquetas+' cajas',done:paso>=3},
+    {t:'Impreso',s:'Zebra',done:paso>=4},
+  ];
+  $('#stations').innerHTML=sts.map((e,i)=>{
+    let cls='',ic=i+1;
+    if(e.fail){cls='fail';ic='!';}
+    else if(e.done){cls='done';ic='✓';}
+    else if((paso>=1&&i===2&&v.valido&&paso<2)||(i===1&&!v.valido)){cls=e.fail?'fail':'now';}
+    else if(i===paso+1&&v.valido){cls='now';}
+    return `<div class="st ${cls}"><div class="ic">${ic}</div>
+      <div class="t">${e.t}</div><div class="s">${e.s}</div></div>`;
+  }).join('');
+}
+
+function lines(){
+  if(!pedido){$('#card-lines').style.display='none';return;}
+  $('#card-lines').style.display='block';
+  const p=pedido;
+  $('#lines-meta').textContent=`${fmt(p.totales_pdf.total_unidades)} pz · ${money(p.totales_pdf.total)} · ${totalEtiquetas()} etiquetas`;
+  $('#tbl').innerHTML=`<thead><tr>
+    <th>#</th><th>SKU SAE</th><th>UPC / GTIN</th><th class="r">Pedida</th><th class="r">A surtir</th>
+    <th class="r">Pz/caja</th><th class="r">Cajas</th><th class="r">P. Unit.</th><th class="r">Importe</th>
+    </tr></thead><tbody>${p.lineas.map(l=>`<tr>
+      <td class="r" style="color:var(--steel-l);font-family:var(--mono)">${l.num_linea}</td>
+      <td class="sku">${l.sku_interno}</td>
+      <td class="gtin">${l.gtin}</td>
+      <td class="r">${fmt(l.cantidad)}</td>
+      <td class="r"><input class="qty-edit" type="number" min="0" value="${l.cantidad_surtir!=null?l.cantidad_surtir:l.cantidad}" data-lid="${l.linea_id||l.num_linea}" data-ped="${l.cantidad}">${l.cantidad_surtir!=null&&l.cantidad_surtir!=l.cantidad?'<span class="qty-diff">≠</span>':''}</td>
+      <td class="r" style="color:var(--steel)">${l.piezas_por_caja}</td>
+      <td class="r"><span class="boxbadge">${cajasDe(l)}</span></td>
+      <td class="r">${money(l.precio_unitario)}</td>
+      <td class="r" style="font-weight:600">${money(l.total_linea)}</td>
+    </tr>`).join('')}</tbody>`;
+}
+
+function invoice(){
+  if(!pedido||paso<1){$('#card-invoice').style.display='none';return;}
+  $('#card-invoice').style.display='block';
+  const h=pedido.encabezado;
+  $('#invoice').innerHTML=`
+    <div class="copyhint">⊞ Estos datos van en la factura de SAE. La OC es obligatoria.</div>
+    <div class="inv-h">
+      <div class="f hl"><span class="k">Orden de compra (referencia)</span><span class="vv">${h.num_orden_compra}</span></div>
+      <div class="f"><span class="k">Moneda</span><span class="vv">${h.moneda||'MXN'}</span></div>
+      <div class="f"><span class="k">Condición de pago</span><span class="vv">${h.condicion_pago||'—'}</span></div>
+      <div class="f"><span class="k">CEDIS destino</span><span class="vv">${h.cedis_destino||'—'}</span></div>
+      <div class="f"><span class="k">Fecha pedido</span><span class="vv">${h.fecha_pedido||'—'}</span></div>
+      <div class="f"><span class="k">Entrega límite</span><span class="vv">${h.fecha_cancelacion||'—'}</span></div>
+    </div>`;
+}
+
+function validation(){
+  const c=$('#validation');
+  if(!pedido){c.innerHTML='<div class="empty"><div class="e">○</div>Carga un pedido para validarlo</div>';return;}
+  const v=pedido._v;
+  if(v.valido){
+    c.innerHTML=`<div class="v ok"><span class="vi">✓</span>
+      <div>Pedido válido. Listo para capturar en SAE.
+      <small>Los totales del PDF cuadran con lo extraído.</small></div></div>`;
+  }else{
+    c.innerHTML=v.errores.map(e=>`<div class="v err"><span class="vi">!</span>
+      <div>${e.d}</div></div>`).join('');
+  }
+}
+
+function acts(){
+  const v=pedido?._v;
+  const can1=pedido&&v.valido&&paso<2;
+  const can2=pedido&&paso>=2&&paso<3;
+  const can3=pedido&&paso>=3&&paso<4;
+  $('#acts').innerHTML=`
+    <button class="btn ${paso>=2?'done-btn':'primary'}" id="a1" ${can1?'':'disabled'}>
+      <span class="step">${paso>=2?'✓':'1'}</span>
+      <span>${paso>=2?'Capturado en SAE':'Marcar capturado en SAE'}</span>
+      <span class="arrow">→</span></button>
+    <button class="btn ${paso>=3?'done-btn':''}" id="a2" ${can2?'':'disabled'}>
+      <span class="step">${paso>=3?'✓':'2'}</span>
+      <span>${paso>=3?'Etiquetas generadas':'Generar etiquetas'}</span>
+      <span class="arrow">→</span></button>
+    <button class="btn ${paso>=4?'done-btn':''}" id="a3" ${can3?'':'disabled'}>
+      <span class="step">${paso>=4?'✓':'3'}</span>
+      <span>${paso>=4?'Enviado a Zebra':'Imprimir en Zebra'}</span>
+      <span class="arrow">→</span></button>`;
+  if(can1)$('#a1').onclick=()=>{paso=2;hist.unshift({oc:pedido.encabezado.num_orden_compra,st:'now',tx:'Capturado · pendiente de timbrar'});render();};
+  if(can2)$('#a2').onclick=()=>{paso=3;render();genLabels();};
+  if(can3)$('#a3').onclick=()=>{paso=4;const n=totalEtiquetas();
+    hist.unshift({oc:pedido.encabezado.num_orden_compra,st:'ok',tx:`${n} etiquetas enviadas a Zebra`});render();
+    abrirModalImpresion(n);};
+}
+
+function history(){
+  $('#hist').innerHTML=hist.map(h=>`<div class="it">
+    <span class="oc">OC ${h.oc}</span><span class="tx">${h.tx}</span>
+    <span class="tag ${h.st}">${{ok:'listo',now:'en sae',fail:'error'}[h.st]}</span>
+  </div>`).join('');
+}
+
+/* ZPL builder (espejo del backend) */
+function zpl(cedis,oc,gtin,piezas,cx,cy){
+  const A=671,L=812,XL=40,XB=250,Y0=70,DY=150,BH=90,FS=28;
+  const ean=String(gtin).replace(/\D/g,'');
+  const sec=(y,t,d,sym)=>{
+    let s=`^FO${XL},${y+30}^A0N,${FS},${FS}^FD${t}^FS\n^FO${XB},${y}^BY2\n`;
+    s+=(sym==='E'&&ean.length===13)?`^BEN,${BH},Y,N^FD${ean}^FS`:`^BCN,${BH},Y,N,N^FD${d}^FS`;
+    return s;
+  };
+  return `^XA\n^CI28\n^PW${A}\n^LL${L}\n^LH0,0\n`+
+    sec(Y0,'CEDIS',cedis,'C')+'\n'+sec(Y0+DY,'OC',oc,'C')+'\n'+
+    sec(Y0+2*DY,'UPC',gtin,'E')+'\n'+sec(Y0+3*DY,'TOTAL DE PIEZAS POR CAJA',piezas,'C')+'\n'+
+    sec(Y0+4*DY,'CONSECUTIVO DE CAJA',`${cx} DE ${cy}`,'C')+'\n^XZ';
+}
+
+async function genLabels(){
+  $('#card-labels').style.display='block';
+  const p=pedido, oc=p.encabezado.num_orden_compra, cedis=p.encabezado.cedis_destino;
+  $('#labels-meta').textContent=`${p.control.total_cajas_etiquetas} etiquetas · una por caja`;
+  // mostrar preview de las primeras 2 lineas (caja 1)
+  const muestras=p.lineas.slice(0,2);
+  $('#lblgrid').innerHTML=muestras.map((l,i)=>`
+    <div class="lblcard"><div class="lh"><span>${l.sku_interno}</span><span>caja 1 de ${l.cajas}</span></div>
+    <div class="lp" id="lp${i}"><small style="color:var(--steel-l)">generando…</small></div></div>`).join('');
+  $('#lblmeta').textContent=`Vista previa de las primeras etiquetas. Total a imprimir: ${p.control.total_cajas_etiquetas} (una por cada caja de cada línea).`;
+  muestras.forEach(async(l,i)=>{
+    const z=zpl(cedis,oc,l.gtin,l.piezas_por_caja,1,l.cajas);
+    try{
+      const r=await fetch(LABELARY,{method:'POST',headers:{'Accept':'image/png'},body:z});
+      if(!r.ok)throw 0;
+      const b=await r.blob();
+      $('#lp'+i).innerHTML=`<img src="${URL.createObjectURL(b)}" alt="etiqueta ${l.sku_interno}">`;
+    }catch(e){
+      $('#lp'+i).innerHTML='<small style="color:var(--steel)">preview disponible al conectar a internet</small>';
+    }
+  });
+}
+
+
+/* cajas según cantidad a surtir (no la pedida) */
+function cajasDe(l){
+  const c = (l.cantidad_surtir!=null?l.cantidad_surtir:l.cantidad);
+  return Math.ceil(c / l.piezas_por_caja);
+}
+
+/* edición de cantidad a surtir */
+function bindQtyEdit(){
+  document.querySelectorAll('.qty-edit').forEach(inp=>{
+    inp.onchange=async()=>{
+      const lid=inp.dataset.lid, nueva=parseInt(inp.value,10)||0;
+      const l=pedido.lineas.find(x=>(x.linea_id||x.num_linea)===lid);
+      if(l){l.cantidad_surtir=nueva;}
+      if(API_BASE){
+        try{await fetch(API_BASE+'/api/lineas/'+lid+'/cantidad',{method:'PATCH',
+          headers:{'Content-Type':'application/json'},body:JSON.stringify({cantidad:nueva})});}catch(e){}
+      }
+      lines(); // re-render para actualizar cajas y total etiquetas
+    };
+  });
+}
+
+/* total de etiquetas según cantidades a surtir */
+function totalEtiquetas(){
+  return pedido.lineas.reduce((a,l)=>a+cajasDe(l),0);
+}
+
+/* ===== Alertas ===== */
+let alertas=[];
+async function cargarAlertas(){
+  if(!API_BASE){
+    alertas=[
+      {severidad:'alta',titulo:'Pedido 8819923011 con error',detalle:'Precio fuera de lista autorizada',creada_en:new Date().toISOString()},
+      {severidad:'media',titulo:'Impresora tardó en responder',detalle:'Reintento exitoso en caja 12',creada_en:new Date(Date.now()-3600000).toISOString()},
+    ];
+  }else{
+    try{const r=await fetch(API_BASE+'/api/alertas');const d=await r.json();alertas=d.alertas||[];}catch(e){alertas=[];}
+  }
+  pintarAlertas();
+}
+function pintarAlertas(){
+  const c=document.getElementById('alert-count');
+  if(alertas.length){c.style.display='inline-block';c.textContent=alertas.length;}
+  else c.style.display='none';
+  const body=document.getElementById('alerts-body');
+  body.innerHTML=alertas.length?alertas.map(a=>`<div class="alert-item ${a.severidad}">
+    <span class="ad"></span><div><div class="at">${a.titulo}</div>
+    <div class="ax">${a.detalle||''}</div>
+    <div class="atime">${new Date(a.creada_en).toLocaleString('es-MX')}</div></div></div>`).join('')
+    :'<div class="empty"><div class="e">✓</div>Sin alertas</div>';
+}
+
+/* ===== Historial ===== */
+async function cargarHistorial(q){
+  const body=document.getElementById('hist-body');
+  let items=[];
+  if(!API_BASE){
+    items=[
+      {num_orden_compra:'8834970382',estatus:'validado',total:84350.6,etiquetas_impresas:0,etiquetas_total:110,creado_en:new Date().toISOString()},
+      {num_orden_compra:'6283703667',estatus:'timbrada',total:71843.4,etiquetas_impresas:92,etiquetas_total:92,creado_en:new Date(Date.now()-86400000).toISOString()},
+      {num_orden_compra:'8821145590',estatus:'factura_creada',total:45200,etiquetas_impresas:0,etiquetas_total:64,creado_en:new Date(Date.now()-172800000).toISOString()},
+    ];
+    if(q)items=items.filter(i=>i.num_orden_compra.includes(q));
+  }else{
+    try{const r=await fetch(API_BASE+'/api/historial'+(q?'?oc='+q:''));const d=await r.json();items=d.pedidos||[];}catch(e){}
+  }
+  const estLabel={validado:'Validado',timbrada:'Timbrada',factura_creada:'Factura sin timbrar',con_errores:'Con errores',revisar_manual:'Revisar a mano'};
+  body.innerHTML=items.length?items.map(i=>`<div class="alert-item">
+    <span class="ad" style="background:var(--go)"></span>
+    <div style="flex:1"><div class="at" style="font-family:var(--mono)">OC ${i.num_orden_compra}</div>
+    <div class="ax">${estLabel[i.estatus]||i.estatus} · ${money(i.total||0)} · ${i.etiquetas_impresas||0}/${i.etiquetas_total||0} etiquetas</div>
+    <div class="atime">${new Date(i.creado_en).toLocaleString('es-MX')}</div></div>
+    <button class="hist-btn" style="background:var(--fog);color:var(--ink);align-self:center" onclick="reabrir('${i.num_orden_compra}')">Ver</button>
+    </div>`).join(''):'<div class="empty"><div class="e">○</div>Sin resultados</div>';
+}
+function reabrir(oc){alert('En producción: reabre el pedido OC '+oc+' para reimprimir o revisar.');}
+
+/* ===== Modal de impresión con avance ===== */
+function abrirModalImpresion(total){
+  document.getElementById('print-bg').classList.add('open');
+  document.getElementById('print-title').textContent='Imprimiendo etiquetas';
+  document.getElementById('print-sub').textContent=`OC ${pedido.encabezado.num_orden_compra} · ${total} etiquetas a la impresora ${PRINTER_IP}`;
+  document.getElementById('reprint-row').style.display='none';
+  simularImpresion(total);
+}
+function simularImpresion(total){
+  let n=0;
+  const bar=document.getElementById('print-bar'),cnt=document.getElementById('print-count'),pct=document.getElementById('print-pct');
+  const iv=setInterval(()=>{
+    n++; const p=Math.round(n/total*100);
+    bar.style.width=p+'%'; cnt.textContent=`${n} de ${total}`; pct.textContent=p+'%';
+    if(n>=total){
+      clearInterval(iv);
+      document.getElementById('print-title').textContent='Impresión completa';
+      document.getElementById('print-sub').textContent=`${total} etiquetas enviadas correctamente.`;
+      document.getElementById('reprint-row').style.display='flex';
+      document.getElementById('rp-to').value=total;
+      document.getElementById('rp-from').max=total;
+      document.getElementById('rp-to').max=total;
+    }
+  }, total>30?30:80);
+}
+
+function render(){kpis();flow();lines();invoice();validation();acts();history();bindQtyEdit();}
+
+async function subir(file){
+  if(!API_BASE){alert('Modo demo: la extracción real ocurre en el backend.\nUsa "Cargar pedido de ejemplo" para ver el flujo completo.');return;}
+  const fd=new FormData();fd.append('file',file);
+  try{
+    const r=await fetch(API_BASE+'/api/pedidos/upload',{method:'POST',body:fd});
+    const d=await r.json();
+    if(!r.ok){alert(d.error);return;}
+    cargar(d.pedido||DEMO);
+  }catch(e){alert('No se pudo contactar el backend: '+e.message);}
+}
+function cargar(p){pedido=p;pedido._v=validar(p);paso=1;
+  $('#card-labels').style.display='none';render();}
+
+const drop=$('#drop');
+drop.onclick=()=>$('#file').click();
+$('#file').onchange=e=>e.target.files[0]&&subir(e.target.files[0]);
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>e.dataTransfer.files[0]&&subir(e.dataTransfer.files[0]));
+$('#demo').onclick=()=>cargar(JSON.parse(JSON.stringify(DEMO)));
+
+$('#modo').textContent=API_BASE?('conectado a '+API_BASE):'modo demo · sin backend · datos de ejemplo';
+$('#conn').textContent=API_BASE?'en línea':'demo';
+
+/* drawers y modal listeners */
+const ab=document.getElementById('alerts-bg'),ad=document.getElementById('alerts-drawer');
+document.getElementById('open-alerts').onclick=()=>{ab.classList.add('open');ad.classList.add('open');cargarAlertas();};
+document.getElementById('close-alerts').onclick=()=>{ab.classList.remove('open');ad.classList.remove('open');};
+ab.onclick=()=>{ab.classList.remove('open');ad.classList.remove('open');};
+const hb=document.getElementById('hist-bg'),hd=document.getElementById('hist-drawer');
+document.getElementById('open-hist').onclick=()=>{hb.classList.add('open');hd.classList.add('open');cargarHistorial('');};
+document.getElementById('close-hist').onclick=()=>{hb.classList.remove('open');hd.classList.remove('open');};
+hb.onclick=()=>{hb.classList.remove('open');hd.classList.remove('open');};
+let htim=null;
+document.getElementById('hist-search').oninput=(e)=>{clearTimeout(htim);htim=setTimeout(()=>cargarHistorial(e.target.value.trim()),300);};
+document.getElementById('print-close').onclick=()=>document.getElementById('print-bg').classList.remove('open');
+document.getElementById('rp-go').onclick=()=>{
+  const f=+document.getElementById('rp-from').value,t=+document.getElementById('rp-to').value;
+  const cnt=t-f+1;
+  document.getElementById('print-title').textContent='Reimprimiendo';
+  document.getElementById('print-sub').textContent=`Reimprimiendo cajas ${f} a ${t} (${cnt} etiquetas)`;
+  document.getElementById('reprint-row').style.display='none';
+  simularImpresion(cnt);
+};
+/* mostrar banner de revisión si aplica */
+function checarRevision(d){
+  const b=document.getElementById('review-banner');
+  if(d&&d.requiere_revision){
+    document.getElementById('review-text').innerHTML='<b>Este pedido requiere revisión manual.</b><br>'+(d.problemas||[]).join(' · ');
+    b.classList.add('show');
+  }else b.classList.remove('show');
+}
+cargarAlertas();
+
+render();
+</script>
+
+<!-- Banner de revisión manual -->
+<div class="banner review" id="review-banner">
+  <span class="bi">⚠</span>
+  <div id="review-text"></div>
+</div>
+
+<!-- Drawer de alertas -->
+<div class="drawer-bg" id="alerts-bg"></div>
+<div class="drawer" id="alerts-drawer">
+  <div class="drawer-h"><b>Alertas</b><button id="close-alerts">×</button></div>
+  <div class="drawer-body" id="alerts-body"></div>
+</div>
+
+<!-- Drawer de historial -->
+<div class="drawer-bg" id="hist-bg"></div>
+<div class="drawer" id="hist-drawer">
+  <div class="drawer-h"><b>Historial de pedidos</b><button id="close-hist">×</button></div>
+  <div class="search-box"><input type="text" id="hist-search" placeholder="Buscar por número de OC…"></div>
+  <div class="drawer-body" id="hist-body"></div>
+</div>
+
+<!-- Modal de impresión -->
+<div class="modal-bg" id="print-bg">
+  <div class="modal">
+    <h4 id="print-title">Imprimiendo etiquetas</h4>
+    <div class="sub" id="print-sub"></div>
+    <div class="prog"><div class="bar" id="print-bar"></div></div>
+    <div class="prog-txt"><span id="print-count">0 de 0</span><span id="print-pct">0%</span></div>
+    <div class="reprint-row" id="reprint-row" style="display:none">
+      <label>Reimprimir cajas de</label>
+      <input type="number" id="rp-from" min="1" value="1">
+      <label>a</label>
+      <input type="number" id="rp-to" min="1" value="1">
+      <button class="mb-primary" style="padding:7px 14px;border-radius:6px;font-size:12px" id="rp-go">Reimprimir</button>
+    </div>
+    <div class="modal-btns">
+      <button class="mb-ghost" id="print-close">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
