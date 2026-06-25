@@ -684,9 +684,74 @@ function reabrir(oc){alert('En producción: reabre el pedido OC '+oc+' para reim
 function abrirModalImpresion(total){
   document.getElementById('print-bg').classList.add('open');
   document.getElementById('print-title').textContent='Imprimiendo etiquetas';
-  document.getElementById('print-sub').textContent=`OC ${pedido.encabezado.num_orden_compra} · ${total} etiquetas enviadas a la cola de impresión`;
+  document.getElementById('print-sub').textContent=`OC ${pedido.encabezado.num_orden_compra} · ${total} etiquetas a la cola de impresión`;
   document.getElementById('reprint-row').style.display='none';
-  simularImpresion(total);
+  if(API_BASE) imprimirReal(); else simularImpresion(total);
+}
+
+/* construye TODAS las etiquetas ZPL (una por caja de cada línea) */
+function construirEtiquetas(desde,hasta){
+  const p=pedido, oc=p.encabezado.num_orden_compra, cedis=p.encabezado.cedis_destino;
+  const todas=[];
+  p.lineas.forEach(l=>{
+    const cajas=cajasDe(l);
+    for(let cx=1;cx<=cajas;cx++){
+      todas.push({zpl:zpl(cedis,oc,l.gtin,l.piezas_por_caja,cx,cajas),
+        caja_x:cx,caja_y:cajas,sku_interno:l.sku_interno});
+    }
+  });
+  if(desde||hasta){const d=desde||1,h=hasta||todas.length;
+    return todas.filter((e,i)=>(i+1)>=d&&(i+1)<=h);}
+  return todas;
+}
+
+/* encola el trabajo REAL en el backend y sigue el avance real */
+async function imprimirReal(desde,hasta){
+  const etiquetas=construirEtiquetas(desde,hasta);
+  const total=etiquetas.length;
+  const bar=document.getElementById('print-bar'),cnt=document.getElementById('print-count'),pct=document.getElementById('print-pct');
+  bar.style.width='0%';cnt.textContent=`0 de ${total}`;pct.textContent='0%';
+  try{
+    const r=await fetch(API_BASE+'/api/imprimir',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({pedido_id:pedido._id||null,etiquetas,estacion:'zebra-01',desde,hasta})});
+    const d=await r.json();
+    if(!r.ok){document.getElementById('print-title').textContent='Error al encolar';
+      document.getElementById('print-sub').textContent=d.error||'No se pudo enviar a la cola';return;}
+    document.getElementById('print-sub').textContent=`OC ${pedido.encabezado.num_orden_compra} · ${total} etiquetas en cola. La estación las está imprimiendo…`;
+    seguirAvance(d.job_id,total);
+  }catch(e){
+    document.getElementById('print-title').textContent='Sin conexión';
+    document.getElementById('print-sub').textContent='No se pudo contactar el backend: '+e.message;
+  }
+}
+
+/* pregunta al backend el avance real del trabajo de impresión */
+function seguirAvance(jobId,total){
+  const bar=document.getElementById('print-bar'),cnt=document.getElementById('print-count'),pct=document.getElementById('print-pct');
+  const iv=setInterval(async()=>{
+    try{
+      const r=await fetch(API_BASE+'/api/print-station/trabajo/'+jobId);
+      const s=await r.json();
+      const hechas=(s.impresas||0)+(s.fallidas||0);
+      const tot=s.total||total;
+      const p=Math.round(hechas/tot*100);
+      bar.style.width=p+'%';cnt.textContent=`${s.impresas||0} de ${tot}`;pct.textContent=p+'%';
+      if(s.estatus==='completo'||s.estatus==='error'){
+        clearInterval(iv);
+        if(s.estatus==='completo'){
+          document.getElementById('print-title').textContent='Impresión completa';
+          document.getElementById('print-sub').textContent=`${s.impresas} etiquetas impresas en la Zebra.`;
+        }else{
+          document.getElementById('print-title').textContent='Impresión con fallas';
+          document.getElementById('print-sub').textContent=(s.error_msg||`${s.fallidas} etiquetas fallaron`)+'. Revisa la impresora y reimprime el rango.';
+        }
+        document.getElementById('reprint-row').style.display='flex';
+        document.getElementById('rp-to').value=tot;
+        document.getElementById('rp-from').max=tot;document.getElementById('rp-to').max=tot;
+      }
+    }catch(e){/* reintenta en el siguiente tick */}
+  },1500);
 }
 function simularImpresion(total){
   let n=0;
@@ -715,7 +780,8 @@ async function subir(file){
     const r=await fetch(API_BASE+'/api/pedidos/upload',{method:'POST',body:fd});
     const d=await r.json();
     if(!r.ok){alert(d.error);return;}
-    cargar(d.pedido||DEMO);
+    const ped=d.pedido||DEMO; ped._id=d.pedido_id||null;
+    cargar(ped);
   }catch(e){alert('No se pudo contactar el backend: '+e.message);}
 }
 function cargar(p){pedido=p;pedido._v=validar(p);paso=1;
@@ -750,7 +816,7 @@ document.getElementById('rp-go').onclick=()=>{
   document.getElementById('print-title').textContent='Reimprimiendo';
   document.getElementById('print-sub').textContent=`Reimprimiendo cajas ${f} a ${t} (${cnt} etiquetas)`;
   document.getElementById('reprint-row').style.display='none';
-  simularImpresion(cnt);
+  if(API_BASE) imprimirReal(f,t); else simularImpresion(cnt);
 };
 /* mostrar banner de revisión si aplica */
 function checarRevision(d){

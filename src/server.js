@@ -118,6 +118,7 @@ app.post("/api/pedidos/upload", upload.single("file"), async (req, res) => {
     res.json({
       ok: true, pedido_id: pedidoId, oc, estatus, validacion,
       requiere_revision: false,
+      pedido,
       resumen: {
         lineas: pedido.lineas.length,
         unidades: pedido.totales_pdf.total_unidades,
