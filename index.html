@@ -599,7 +599,30 @@ function invoice(){
       <div class="f"><span class="k">CEDIS destino</span><span class="vv">${h.cedis_destino||'—'}</span></div>
       <div class="f"><span class="k">Fecha pedido</span><span class="vv">${h.fecha_pedido||'—'}</span></div>
       <div class="f"><span class="k">Entrega límite</span><span class="vv">${h.fecha_cancelacion||'—'}</span></div>
-    </div>`;
+    </div>
+    <button class="btn primary" id="btn-sae" style="width:100%;margin-top:14px">
+      ⬇ Descargar archivo para importar a SAE (.xlsx)</button>
+    <div class="lblsel-hint" style="margin-top:8px">Descarga el archivo y en SAE: Importar → seleccionar archivo. SAE crea la factura sin timbrar.</div>`;
+  const b=$('#btn-sae'); if(b) b.onclick=descargarSAE;
+}
+
+async function descargarSAE(){
+  if(!pedido) return;
+  if(!API_BASE){alert('Conecta el backend para generar el archivo de SAE.');return;}
+  const btn=$('#btn-sae'); const txt=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Generando…';}
+  try{
+    const id=pedido._id||'nuevo';
+    const r=await fetch(API_BASE+'/api/pedidos/'+id+'/sae',{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({pedido})});
+    if(!r.ok){const d=await r.json().catch(()=>({}));alert(d.error||'No se pudo generar el archivo');return;}
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download='factura_SAE_OC'+pedido.encabezado.num_orden_compra+'.xlsx';
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }catch(e){alert('Error: '+e.message);}
+  finally{ if(btn){btn.disabled=false;btn.textContent=txt;} }
 }
 
 function validation(){
