@@ -1,10 +1,11 @@
 {
-  "name": "backend",
+  "name": "embarque-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Backend Embarque: Walmart PDF -> SAE -> Zebra",
+  "main": "src/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/server.js",
+    "test": "echo \"no test\" && exit 0"
   },
   "keywords": [],
   "author": "",
