@@ -217,6 +217,31 @@
   .lblsel-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;
     flex-wrap:wrap}
 
+  /* calibrador de etiqueta (arrastrar guías) */
+  .cal-bar{margin-top:18px;padding-top:14px;border-top:1px solid var(--line-2);
+    display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .cal-panel{display:none;margin-top:14px;border:1px solid var(--line);border-radius:10px;
+    padding:16px;background:#fbfcfe}
+  .cal-panel.open{display:block}
+  .cal-stage{position:relative;margin:0 auto;border:1px solid var(--line);background:#fff;
+    touch-action:none;user-select:none}
+  .cal-stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;
+    pointer-events:none}
+  .cal-guide{position:absolute;top:0;bottom:0;width:14px;margin-left:-7px;cursor:ew-resize;
+    z-index:2;display:flex;justify-content:center}
+  .cal-guide::before{content:"";position:absolute;top:0;bottom:0;width:2px;
+    border-left:2px dashed var(--focus)}
+  .cal-guide .glbl{position:absolute;top:2px;font-size:9px;font-family:var(--mono);
+    background:var(--focus);color:#fff;padding:1px 5px;border-radius:4px;white-space:nowrap}
+  .cal-guide.bc::before{border-color:var(--stop)}
+  .cal-guide.bc .glbl{background:var(--stop)}
+  .cal-ctrls{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+  .cal-ctrl{font-size:12px}
+  .cal-ctrl label{display:block;color:var(--steel);margin-bottom:5px;font-weight:600}
+  .cal-ctrl input[type=range]{width:100%}
+  .cal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+  @media(max-width:640px){.cal-ctrls{grid-template-columns:1fr}}
+
   /* history */
   .hist .it{display:flex;align-items:center;gap:12px;padding:12px 20px;
     border-bottom:1px solid var(--line-2);font-size:12.5px}
@@ -373,6 +398,33 @@
       <div class="pad">
         <div class="lblgrid" id="lblgrid"></div>
         <p class="lblmeta" id="lblmeta"></p>
+
+        <div class="cal-bar">
+          <div><b>Ajuste de la etiqueta</b>
+          <span class="lblsel-hint">Arrastra la guía azul (texto) y la roja (código) para que no se encimen. Se aplica a TODAS las etiquetas.</span></div>
+          <button class="btn" id="cal-toggle">Ajustar posición</button>
+        </div>
+        <div class="cal-panel" id="cal-panel">
+          <div class="cal-stage" id="cal-stage">
+            <img id="cal-img" alt="vista previa de la etiqueta">
+            <div class="cal-guide" id="cal-gtext"><span class="glbl">Texto ↔</span></div>
+            <div class="cal-guide bc" id="cal-gbc"><span class="glbl">Código ↔</span></div>
+          </div>
+          <div class="cal-ctrls">
+            <div class="cal-ctrl"><label>Tamaño de letra: <span id="cal-fsv"></span></label>
+              <input type="range" id="cal-fs" min="14" max="40" step="1"></div>
+            <div class="cal-ctrl"><label>Altura del código: <span id="cal-bhv"></span></label>
+              <input type="range" id="cal-bh" min="50" max="140" step="2"></div>
+            <div class="cal-ctrl"><label>Separación entre filas: <span id="cal-dyv"></span></label>
+              <input type="range" id="cal-dy" min="110" max="185" step="1"></div>
+            <div class="cal-ctrl"><label>Inicio vertical: <span id="cal-y0v"></span></label>
+              <input type="range" id="cal-y0" min="20" max="150" step="1"></div>
+          </div>
+          <div class="cal-actions">
+            <button class="btn" id="cal-reset">Restaurar valores</button>
+            <button class="btn primary" id="cal-save">Guardar y aplicar a todas</button>
+          </div>
+        </div>
 
         <div class="lblsel-bar">
           <b>Reimpresión por caja</b>
@@ -592,8 +644,15 @@ function history(){
 }
 
 /* ZPL builder (espejo del backend) */
+/* posiciones de la etiqueta (ajustables y guardadas en este navegador).
+   XL = X del texto, XB = X del código, FS = tamaño de letra,
+   Y0 = inicio vertical, DY = separación entre filas, BH = altura del código */
+const LAYOUT_DEF={XL:30,XB:330,FS:22,Y0:70,DY:150,BH:90};
+let LAYOUT=Object.assign({},LAYOUT_DEF,(()=>{try{return JSON.parse(localStorage.getItem('zlayout')||'{}')}catch(e){return{}}})());
+
 function zpl(cedis,oc,gtin,piezas,cx,cy){
-  const A=671,L=812,XL=40,XB=250,Y0=70,DY=150,BH=90,FS=28;
+  const A=671,L=812;
+  const XL=LAYOUT.XL,XB=LAYOUT.XB,FS=LAYOUT.FS,Y0=LAYOUT.Y0,DY=LAYOUT.DY,BH=LAYOUT.BH;
   const ean=String(gtin).replace(/\D/g,'');
   const sec=(y,t,d,sym)=>{
     let s=`^FO${XL},${y+30}^A0N,${FS},${FS}^FD${t}^FS\n^FO${XB},${y}^BY2\n`;
@@ -820,6 +879,62 @@ function imprimirSeleccionadas(){
     simularImpresion(etiquetas.length); }
 }
 
+/* ===== Calibrador de etiqueta (arrastrar guías + sliders) ===== */
+const CAL_SCALE=0.42;          // px de pantalla por cada dot de la etiqueta
+let calTmp=null, calTimer=null;
+function abrirCalibrador(){
+  const panel=document.getElementById('cal-panel');
+  panel.classList.toggle('open');
+  if(!panel.classList.contains('open')) return;
+  calTmp=Object.assign({},LAYOUT);
+  const stage=document.getElementById('cal-stage');
+  stage.style.width=(671*CAL_SCALE)+'px';
+  stage.style.height=(812*CAL_SCALE)+'px';
+  ['fs','bh','dy','y0'].forEach(k=>{
+    document.getElementById('cal-'+k).value=calTmp[{fs:'FS',bh:'BH',dy:'DY',y0:'Y0'}[k]];
+  });
+  sincronizarCal();
+  renderCalPreview();
+}
+function sincronizarCal(){
+  document.getElementById('cal-gtext').style.left=(calTmp.XL*CAL_SCALE)+'px';
+  document.getElementById('cal-gbc').style.left=(calTmp.XB*CAL_SCALE)+'px';
+  document.getElementById('cal-fsv').textContent=calTmp.FS;
+  document.getElementById('cal-bhv').textContent=calTmp.BH;
+  document.getElementById('cal-dyv').textContent=calTmp.DY;
+  document.getElementById('cal-y0v').textContent=calTmp.Y0;
+}
+function renderCalPreview(){
+  clearTimeout(calTimer);
+  calTimer=setTimeout(async()=>{
+    const l=(pedido&&pedido.lineas[0])||{gtin:'7500462718718',piezas_por_caja:6};
+    const oc=(pedido&&pedido.encabezado.num_orden_compra)||'8834970382';
+    const cedis=(pedido&&pedido.encabezado.cedis_destino)||'7494';
+    const saved=LAYOUT; LAYOUT=calTmp;
+    const z=zpl(cedis,oc,l.gtin,l.piezas_por_caja,1,cajasDe(l)||1);
+    LAYOUT=saved;
+    try{
+      const r=await fetch(LABELARY,{method:'POST',headers:{'Accept':'image/png','Content-Type':'application/x-www-form-urlencoded'},body:z});
+      if(r.ok){const b=await r.blob();document.getElementById('cal-img').src=URL.createObjectURL(b);}
+    }catch(e){}
+  },220);
+}
+function hacerArrastrable(el,prop){
+  el.addEventListener('pointerdown',(e)=>{
+    e.preventDefault(); el.setPointerCapture(e.pointerId);
+    const stage=document.getElementById('cal-stage');
+    const move=(ev)=>{
+      const rect=stage.getBoundingClientRect();
+      let x=Math.max(0,Math.min(ev.clientX-rect.left,rect.width));
+      calTmp[prop]=Math.round(x/CAL_SCALE);
+      sincronizarCal(); renderCalPreview();
+    };
+    const up=(ev)=>{el.releasePointerCapture(ev.pointerId);
+      el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);};
+    el.addEventListener('pointermove',move); el.addEventListener('pointerup',up);
+  });
+}
+
 /* pregunta al backend el avance real del trabajo de impresión */
 function seguirAvance(jobId,total){
   const bar=document.getElementById('print-bar'),cnt=document.getElementById('print-count'),pct=document.getElementById('print-pct');
@@ -916,6 +1031,26 @@ document.getElementById('sel-print').onclick=imprimirSeleccionadas;
 document.getElementById('sel-clear').onclick=()=>{
   document.querySelectorAll('#lblselect .boxchip.sel').forEach(c=>c.classList.remove('sel'));
   actualizarSelCount();
+};
+
+/* calibrador */
+document.getElementById('cal-toggle').onclick=abrirCalibrador;
+hacerArrastrable(document.getElementById('cal-gtext'),'XL');
+hacerArrastrable(document.getElementById('cal-gbc'),'XB');
+[['cal-fs','FS'],['cal-bh','BH'],['cal-dy','DY'],['cal-y0','Y0']].forEach(([id,prop])=>{
+  document.getElementById(id).oninput=(e)=>{calTmp[prop]=+e.target.value;sincronizarCal();renderCalPreview();};
+});
+document.getElementById('cal-reset').onclick=()=>{
+  calTmp=Object.assign({},LAYOUT_DEF);
+  ['fs','bh','dy','y0'].forEach(k=>{document.getElementById('cal-'+k).value=calTmp[{fs:'FS',bh:'BH',dy:'DY',y0:'Y0'}[k]];});
+  sincronizarCal();renderCalPreview();
+};
+document.getElementById('cal-save').onclick=()=>{
+  LAYOUT=Object.assign({},calTmp);
+  try{localStorage.setItem('zlayout',JSON.stringify(LAYOUT));}catch(e){}
+  document.getElementById('cal-panel').classList.remove('open');
+  if(pedido&&paso>=3) genLabels();   // re-render con el nuevo ajuste
+  alert('Ajuste guardado. Se aplicará a todas las etiquetas (preview e impresión) en este navegador.');
 };
 /* mostrar banner de revisión si aplica */
 function checarRevision(d){
