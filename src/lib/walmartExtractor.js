@@ -38,11 +38,13 @@ function extractHeader(text) {
   h.num_proveedor_walmart = grab(/Supplier Number\s+(\d+)/, text);
   h.nombre_proveedor = grab(/Proveedor\s*\n([A-Z][^\n]+)/, text);
   h.formato_tienda = grab(/Formato De Tienda\s*\n(BODEGA|TIENDA)/, text);
-  // El destino puede venir como "CD NAVE 1 SECOS 7494" o "SECOS CD GUADALAJARA 7493".
-  // Tomamos la línea completa tras "Enviar a:" y de ahí el código de 4-5 dígitos,
-  // sin asumir que empiece con "CD".
+  // El destino varía mucho: "CD NAVE 1 SECOS 7494", "SECOS CD GUADALAJARA 7493",
+  // "BODEGA 2000 CD MONTERREY 6051", "TIENDA 2651 ...", etc.
+  // El código de CEDIS/tienda es SIEMPRE el último número de la línea de destino,
+  // así que tomamos esa línea y de ahí el último grupo de 3-6 dígitos.
   h.cedis_nombre = grab(/Enviar a:\s*\n([^\n]+)/, text);
-  h.cedis_destino = grab(/Enviar a:\s*\n[^\n]*?(\d{4,5})(?=\s|$)/m, text);
+  const _destNums = (h.cedis_nombre || "").match(/\d{3,6}/g);
+  h.cedis_destino = _destNums ? _destNums[_destNums.length - 1] : null;
   h.gln_destino = grab(/GLN\s+(\d+)/, text);
   h.instrucciones = grab(/Instrucciones de orden\s*\n([^\n]+)/, text);
   for (const k of Object.keys(h)) {
