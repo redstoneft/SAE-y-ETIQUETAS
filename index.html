@@ -383,8 +383,7 @@
 <div class="modo" id="modo"></div>
 
 <script>
-const API_BASE = "";
-const PRINTER_IP = "192.168.1.50";  // IP de tu Zebra en la red (cámbiala)
+const API_BASE = "https://sae-y-etiquetas-production.up.railway.app";
 const LABELARY = "https://api.labelary.com/v1/printers/8dpmm/labels/3.31x4.0/";
 const DEMO = {"cliente":"WALMART","encabezado":{"num_orden_compra":"8834970382","fecha_pedido":"2026-06-18","fecha_envio":"2026-06-18","fecha_cancelacion":"2026-06-25","tipo_orden":"0033","moneda":"MXN","departamento":"00014","evento_promocional":"POS REPLEN","condicion_pago":"NET 90 based on Receipt of Goods","num_proveedor_walmart":"826370140","nombre_proveedor":"FUTUREENTS TECH SA DE CV","formato_tienda":"BODEGA","cedis_nombre":"CD NAVE 1 SECOS 7494","cedis_destino":"7494","gln_destino":"7507003116675","instrucciones":"NO PRETICKET"},"lineas":[{"num_linea":"001","sku_walmart":"101581796","sku_interno":"SIC24G","gtin":"7500462718718","color":"GRIS","cantidad":168,"uom":"EA","piezas_por_caja":6,"cajas":28,"precio_unitario":120.45,"total_linea":20235.6},{"num_linea":"002","sku_walmart":"101581797","sku_interno":"SIC20G","gtin":"7500462718695","color":"GRIS","cantidad":108,"uom":"EA","piezas_por_caja":6,"cajas":18,"precio_unitario":98.2,"total_linea":10605.6},{"num_linea":"003","sku_walmart":"101581798","sku_interno":"SIC28G","gtin":"7500462718817","color":"GRIS","cantidad":102,"uom":"EA","piezas_por_caja":6,"cajas":17,"precio_unitario":146,"total_linea":14892},{"num_linea":"004","sku_walmart":"101581799","sku_interno":"CIC16G","gtin":"7500462719005","color":"GRIS","cantidad":36,"uom":"EA","piezas_por_caja":4,"cajas":9,"precio_unitario":147.15,"total_linea":5297.4},{"num_linea":"005","sku_walmart":"101581800","sku_interno":"OIC24G","gtin":"7500462719036","color":"GRIS","cantidad":80,"uom":"EA","piezas_por_caja":4,"cajas":20,"precio_unitario":232,"total_linea":18560},{"num_linea":"006","sku_walmart":"101581801","sku_interno":"BIC24G","gtin":"7500462719050","color":"GRIS","cantidad":72,"uom":"EA","piezas_por_caja":4,"cajas":18,"precio_unitario":205,"total_linea":14760}],"totales_pdf":{"total":84350.6,"total_lineas":6,"total_unidades":566},"control":{"suma_extendido_calculado":84350.6,"coincide_total":true,"suma_unidades_calculado":566,"coincide_unidades":true,"num_lineas_calculado":6,"coincide_num_lineas":true,"total_cajas_etiquetas":110}};
 
@@ -644,7 +643,7 @@ function reabrir(oc){alert('En producción: reabre el pedido OC '+oc+' para reim
 function abrirModalImpresion(total){
   document.getElementById('print-bg').classList.add('open');
   document.getElementById('print-title').textContent='Imprimiendo etiquetas';
-  document.getElementById('print-sub').textContent=`OC ${pedido.encabezado.num_orden_compra} · ${total} etiquetas a la impresora ${PRINTER_IP}`;
+  document.getElementById('print-sub').textContent=`OC ${pedido.encabezado.num_orden_compra} · ${total} etiquetas enviadas a la cola de impresión`;
   document.getElementById('reprint-row').style.display='none';
   simularImpresion(total);
 }

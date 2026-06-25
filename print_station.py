@@ -26,9 +26,9 @@ import sys
 import json
 
 # ====== CONFIG ======
-BACKEND_URL  = "https://TU-BACKEND.com"   # URL de tu backend en la nube
+BACKEND_URL  = "https://sae-y-etiquetas-production.up.railway.app"  # backend en Railway
 ESTACION     = "zebra-01"                  # id de esta PC/impresora
-PRINTER_NAME = ""                          # nombre EXACTO de la Zebra en Windows
+PRINTER_NAME = ""                          # vacio = auto-detecta la Zebra (GK420/ZDesigner)
 POLL_SEGUNDOS = 5                          # cada cuanto pregunta por trabajo
 MAX_INTENTOS = 3                           # reintentos por etiqueta
 
@@ -50,6 +50,15 @@ def listar_impresoras():
         return ["[pywin32 no instalado: pip install pywin32]"]
     except Exception as e:
         return [f"[error: {e}]"]
+
+
+def autodetectar_zebra():
+    """Devuelve el nombre de la primera impresora Zebra/GK420 encontrada, o ''."""
+    for p in listar_impresoras():
+        pl = p.lower()
+        if "gk420" in pl or "zebra" in pl or "zdesigner" in pl:
+            return p
+    return ""
 
 
 def imprimir_raw(zpl, printer_name):
@@ -131,6 +140,7 @@ def procesar(job):
 
 # ====== Loop principal ======
 def main():
+    global PRINTER_NAME
     print("=" * 55)
     print(" ESTACION DE IMPRESION ZEBRA -- jala trabajos del backend")
     print("=" * 55)
@@ -138,7 +148,13 @@ def main():
     for p in listar_impresoras():
         print("   -", p)
     if not PRINTER_NAME:
-        print("\n>> Configura PRINTER_NAME con el nombre exacto de tu Zebra.")
+        PRINTER_NAME = autodetectar_zebra()
+        if PRINTER_NAME:
+            print(f"\n>> Zebra detectada automaticamente: {PRINTER_NAME}")
+        else:
+            print("\n>> No encontre una Zebra. Edita PRINTER_NAME con el nombre exacto.")
+    else:
+        print(f"\n>> Usando impresora: {PRINTER_NAME}")
     print(f"\nBackend: {BACKEND_URL}")
     print(f"Estacion: {ESTACION} | Revisando cada {POLL_SEGUNDOS}s")
     print("Ctrl+C para detener.\n")

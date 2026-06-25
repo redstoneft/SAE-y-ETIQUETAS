@@ -142,11 +142,11 @@ app.post("/api/pedidos/upload", upload.single("file"), async (req, res) => {
 app.post("/api/pedidos/:id/sae", async (req, res) => {
   try {
     const pedidoId = req.params.id;
-    const pedido = cache.get(pedidoId) || req.body.pedido;
+    const pedido = cache.get(pedidoId) || req.body?.pedido;
     if (!pedido) return res.status(404).json({ error: "Pedido no encontrado; reenvialo en body.pedido" });
 
     // config real de Walmart por defecto; se puede sobreescribir en el body
-    const cfg = { ...CONFIG_WALMART, ...(req.body.config || {}) };
+    const cfg = { ...CONFIG_WALMART, ...(req.body?.config || {}) };
     if (!cfg.folio) return res.status(400).json({ error: "Falta el folio del documento (Clave)" });
     if (!cfg.clienteSae) return res.status(400).json({ error: "Falta la clave del cliente en SAE" });
 
@@ -176,7 +176,7 @@ app.post("/api/pedidos/:id/sae", async (req, res) => {
 app.post("/api/pedidos/:id/etiquetas", async (req, res) => {
   try {
     const pedidoId = req.params.id;
-    const pedido = cache.get(pedidoId) || req.body.pedido;
+    const pedido = cache.get(pedidoId) || req.body?.pedido;
     if (!pedido) return res.status(404).json({ error: "Pedido no encontrado; reenvialo en body.pedido" });
 
     const etiquetas = generarEtiquetasPedido(pedido);
