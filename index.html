@@ -382,6 +382,47 @@
 
 <div class="modo" id="modo"></div>
 
+<!-- Banner de revisión manual -->
+<div class="banner review" id="review-banner">
+  <span class="bi">⚠</span>
+  <div id="review-text"></div>
+</div>
+
+<!-- Drawer de alertas -->
+<div class="drawer-bg" id="alerts-bg"></div>
+<div class="drawer" id="alerts-drawer">
+  <div class="drawer-h"><b>Alertas</b><button id="close-alerts">×</button></div>
+  <div class="drawer-body" id="alerts-body"></div>
+</div>
+
+<!-- Drawer de historial -->
+<div class="drawer-bg" id="hist-bg"></div>
+<div class="drawer" id="hist-drawer">
+  <div class="drawer-h"><b>Historial de pedidos</b><button id="close-hist">×</button></div>
+  <div class="search-box"><input type="text" id="hist-search" placeholder="Buscar por número de OC…"></div>
+  <div class="drawer-body" id="hist-body"></div>
+</div>
+
+<!-- Modal de impresión -->
+<div class="modal-bg" id="print-bg">
+  <div class="modal">
+    <h4 id="print-title">Imprimiendo etiquetas</h4>
+    <div class="sub" id="print-sub"></div>
+    <div class="prog"><div class="bar" id="print-bar"></div></div>
+    <div class="prog-txt"><span id="print-count">0 de 0</span><span id="print-pct">0%</span></div>
+    <div class="reprint-row" id="reprint-row" style="display:none">
+      <label>Reimprimir cajas de</label>
+      <input type="number" id="rp-from" min="1" value="1">
+      <label>a</label>
+      <input type="number" id="rp-to" min="1" value="1">
+      <button class="mb-primary" style="padding:7px 14px;border-radius:6px;font-size:12px" id="rp-go">Reimprimir</button>
+    </div>
+    <div class="modal-btns">
+      <button class="mb-ghost" id="print-close">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API_BASE = "https://sae-y-etiquetas-production.up.railway.app";
 const LABELARY = "https://api.labelary.com/v1/printers/8dpmm/labels/3.31x4.0/";
@@ -723,47 +764,6 @@ cargarAlertas();
 
 render();
 </script>
-
-<!-- Banner de revisión manual -->
-<div class="banner review" id="review-banner">
-  <span class="bi">⚠</span>
-  <div id="review-text"></div>
-</div>
-
-<!-- Drawer de alertas -->
-<div class="drawer-bg" id="alerts-bg"></div>
-<div class="drawer" id="alerts-drawer">
-  <div class="drawer-h"><b>Alertas</b><button id="close-alerts">×</button></div>
-  <div class="drawer-body" id="alerts-body"></div>
-</div>
-
-<!-- Drawer de historial -->
-<div class="drawer-bg" id="hist-bg"></div>
-<div class="drawer" id="hist-drawer">
-  <div class="drawer-h"><b>Historial de pedidos</b><button id="close-hist">×</button></div>
-  <div class="search-box"><input type="text" id="hist-search" placeholder="Buscar por número de OC…"></div>
-  <div class="drawer-body" id="hist-body"></div>
-</div>
-
-<!-- Modal de impresión -->
-<div class="modal-bg" id="print-bg">
-  <div class="modal">
-    <h4 id="print-title">Imprimiendo etiquetas</h4>
-    <div class="sub" id="print-sub"></div>
-    <div class="prog"><div class="bar" id="print-bar"></div></div>
-    <div class="prog-txt"><span id="print-count">0 de 0</span><span id="print-pct">0%</span></div>
-    <div class="reprint-row" id="reprint-row" style="display:none">
-      <label>Reimprimir cajas de</label>
-      <input type="number" id="rp-from" min="1" value="1">
-      <label>a</label>
-      <input type="number" id="rp-to" min="1" value="1">
-      <button class="mb-primary" style="padding:7px 14px;border-radius:6px;font-size:12px" id="rp-go">Reimprimir</button>
-    </div>
-    <div class="modal-btns">
-      <button class="mb-ghost" id="print-close">Cerrar</button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
