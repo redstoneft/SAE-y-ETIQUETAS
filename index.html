@@ -200,6 +200,23 @@
   .lblcard img{max-width:100%;height:auto}
   .lblmeta{font-size:11px;color:var(--steel);padding:10px 0 0}
 
+  /* selección de etiquetas para reimprimir */
+  .lblsel-bar{margin-top:18px;padding-top:14px;border-top:1px solid var(--line-2)}
+  .lblsel-bar b{font-size:12px}
+  .lblsel-hint{display:block;font-size:11px;color:var(--steel);margin-top:2px}
+  .lblline{margin-top:12px}
+  .lblline-h{display:flex;justify-content:space-between;align-items:center;
+    font-size:12px;font-weight:600;margin-bottom:6px}
+  .lblline-h .sa{font-size:11px;color:var(--focus);cursor:pointer;font-weight:600}
+  .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .boxchip{font-family:var(--mono);font-size:11px;padding:4px 9px;border:1px solid var(--line);
+    border-radius:6px;cursor:pointer;background:var(--paper);color:var(--steel);
+    user-select:none;transition:.1s;font-variant-numeric:tabular-nums}
+  .boxchip:hover{border-color:var(--steel-l)}
+  .boxchip.sel{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .lblsel-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;
+    flex-wrap:wrap}
+
   /* history */
   .hist .it{display:flex;align-items:center;gap:12px;padding:12px 20px;
     border-bottom:1px solid var(--line-2);font-size:12.5px}
@@ -356,6 +373,16 @@
       <div class="pad">
         <div class="lblgrid" id="lblgrid"></div>
         <p class="lblmeta" id="lblmeta"></p>
+
+        <div class="lblsel-bar">
+          <b>Reimpresión por caja</b>
+          <span class="lblsel-hint">Toca las cajas que necesites reimprimir (por ejemplo, si una etiqueta se rompió o atoró).</span>
+        </div>
+        <div id="lblselect"></div>
+        <div class="lblsel-actions">
+          <button class="btn" id="sel-clear">Limpiar selección</button>
+          <button class="btn primary" id="sel-print" disabled>Reimprimir seleccionadas (0)</button>
+        </div>
       </div>
     </div>
   </div>
@@ -425,7 +452,7 @@
 
 <script>
 const API_BASE = "https://sae-y-etiquetas-production.up.railway.app";
-const LABELARY = "https://api.labelary.com/v1/printers/8dpmm/labels/3.31x4.0/";
+const LABELARY = "https://api.labelary.com/v1/printers/8dpmm/labels/3.31x4.0/0/";
 const DEMO = {"cliente":"WALMART","encabezado":{"num_orden_compra":"8834970382","fecha_pedido":"2026-06-18","fecha_envio":"2026-06-18","fecha_cancelacion":"2026-06-25","tipo_orden":"0033","moneda":"MXN","departamento":"00014","evento_promocional":"POS REPLEN","condicion_pago":"NET 90 based on Receipt of Goods","num_proveedor_walmart":"826370140","nombre_proveedor":"FUTUREENTS TECH SA DE CV","formato_tienda":"BODEGA","cedis_nombre":"CD NAVE 1 SECOS 7494","cedis_destino":"7494","gln_destino":"7507003116675","instrucciones":"NO PRETICKET"},"lineas":[{"num_linea":"001","sku_walmart":"101581796","sku_interno":"SIC24G","gtin":"7500462718718","color":"GRIS","cantidad":168,"uom":"EA","piezas_por_caja":6,"cajas":28,"precio_unitario":120.45,"total_linea":20235.6},{"num_linea":"002","sku_walmart":"101581797","sku_interno":"SIC20G","gtin":"7500462718695","color":"GRIS","cantidad":108,"uom":"EA","piezas_por_caja":6,"cajas":18,"precio_unitario":98.2,"total_linea":10605.6},{"num_linea":"003","sku_walmart":"101581798","sku_interno":"SIC28G","gtin":"7500462718817","color":"GRIS","cantidad":102,"uom":"EA","piezas_por_caja":6,"cajas":17,"precio_unitario":146,"total_linea":14892},{"num_linea":"004","sku_walmart":"101581799","sku_interno":"CIC16G","gtin":"7500462719005","color":"GRIS","cantidad":36,"uom":"EA","piezas_por_caja":4,"cajas":9,"precio_unitario":147.15,"total_linea":5297.4},{"num_linea":"005","sku_walmart":"101581800","sku_interno":"OIC24G","gtin":"7500462719036","color":"GRIS","cantidad":80,"uom":"EA","piezas_por_caja":4,"cajas":20,"precio_unitario":232,"total_linea":18560},{"num_linea":"006","sku_walmart":"101581801","sku_interno":"BIC24G","gtin":"7500462719050","color":"GRIS","cantidad":72,"uom":"EA","piezas_por_caja":4,"cajas":18,"precio_unitario":205,"total_linea":14760}],"totales_pdf":{"total":84350.6,"total_lineas":6,"total_unidades":566},"control":{"suma_extendido_calculado":84350.6,"coincide_total":true,"suma_unidades_calculado":566,"coincide_unidades":true,"num_lineas_calculado":6,"coincide_num_lineas":true,"total_cajas_etiquetas":110}};
 
 let pedido = null, paso = 0;
@@ -589,10 +616,11 @@ async function genLabels(){
     <div class="lblcard"><div class="lh"><span>${l.sku_interno}</span><span>caja 1 de ${l.cajas}</span></div>
     <div class="lp" id="lp${i}"><small style="color:var(--steel-l)">generando…</small></div></div>`).join('');
   $('#lblmeta').textContent=`Vista previa de las primeras etiquetas. Total a imprimir: ${p.control.total_cajas_etiquetas} (una por cada caja de cada línea).`;
+  renderSelector();
   muestras.forEach(async(l,i)=>{
     const z=zpl(cedis,oc,l.gtin,l.piezas_por_caja,1,l.cajas);
     try{
-      const r=await fetch(LABELARY,{method:'POST',headers:{'Accept':'image/png'},body:z});
+      const r=await fetch(LABELARY,{method:'POST',headers:{'Accept':'image/png','Content-Type':'application/x-www-form-urlencoded'},body:z});
       if(!r.ok)throw 0;
       const b=await r.blob();
       $('#lp'+i).innerHTML=`<img src="${URL.createObjectURL(b)}" alt="etiqueta ${l.sku_interno}">`;
@@ -707,14 +735,23 @@ function construirEtiquetas(desde,hasta){
 
 /* encola el trabajo REAL en el backend y sigue el avance real */
 async function imprimirReal(desde,hasta){
-  const etiquetas=construirEtiquetas(desde,hasta);
+  await encolarYSeguir(construirEtiquetas(desde,hasta));
+}
+
+/* abre el modal y encola una lista concreta de etiquetas (sirve para todo el
+   pedido, para un rango, o para una selección manual de cajas) */
+async function encolarYSeguir(etiquetas){
+  if(!etiquetas.length) return;
   const total=etiquetas.length;
+  document.getElementById('print-bg').classList.add('open');
+  document.getElementById('print-title').textContent='Imprimiendo etiquetas';
+  document.getElementById('reprint-row').style.display='none';
   const bar=document.getElementById('print-bar'),cnt=document.getElementById('print-count'),pct=document.getElementById('print-pct');
   bar.style.width='0%';cnt.textContent=`0 de ${total}`;pct.textContent='0%';
   try{
     const r=await fetch(API_BASE+'/api/imprimir',{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({pedido_id:pedido._id||null,etiquetas,estacion:'zebra-01',desde,hasta})});
+      body:JSON.stringify({pedido_id:pedido._id||null,etiquetas,estacion:'zebra-01'})});
     const d=await r.json();
     if(!r.ok){document.getElementById('print-title').textContent='Error al encolar';
       document.getElementById('print-sub').textContent=d.error||'No se pudo enviar a la cola';return;}
@@ -724,6 +761,49 @@ async function imprimirReal(desde,hasta){
     document.getElementById('print-title').textContent='Sin conexión';
     document.getElementById('print-sub').textContent='No se pudo contactar el backend: '+e.message;
   }
+}
+
+/* lista de cajas seleccionables, una sección por línea */
+function renderSelector(){
+  const cont=document.getElementById('lblselect');
+  if(!cont||!pedido) return;
+  cont.innerHTML=pedido.lineas.map((l,i)=>{
+    const cajas=cajasDe(l);
+    let chips='';
+    for(let c=1;c<=cajas;c++) chips+=`<span class="boxchip" data-li="${i}" data-bx="${c}">${c}</span>`;
+    return `<div class="lblline"><div class="lblline-h">
+      <span>${l.sku_interno} · ${cajas} caja${cajas>1?'s':''}</span>
+      <span class="sa" data-li="${i}">seleccionar todas</span></div>
+      <div class="chips">${chips}</div></div>`;
+  }).join('');
+  cont.querySelectorAll('.boxchip').forEach(ch=>ch.onclick=()=>{ch.classList.toggle('sel');actualizarSelCount();});
+  cont.querySelectorAll('.sa').forEach(sa=>sa.onclick=()=>{
+    const li=sa.dataset.li, chips=cont.querySelectorAll(`.boxchip[data-li="${li}"]`);
+    const todas=[...chips].every(c=>c.classList.contains('sel'));
+    chips.forEach(c=>c.classList.toggle('sel',!todas));
+    actualizarSelCount();
+  });
+  actualizarSelCount();
+}
+function actualizarSelCount(){
+  const n=document.querySelectorAll('#lblselect .boxchip.sel').length;
+  const b=document.getElementById('sel-print');
+  if(b){b.textContent=`Reimprimir seleccionadas (${n})`;b.disabled=n===0;}
+}
+/* construye etiquetas SOLO de las cajas seleccionadas y las imprime */
+function imprimirSeleccionadas(){
+  const sel=[...document.querySelectorAll('#lblselect .boxchip.sel')];
+  if(!sel.length) return;
+  const oc=pedido.encabezado.num_orden_compra, cedis=pedido.encabezado.cedis_destino;
+  const etiquetas=sel.map(ch=>{
+    const l=pedido.lineas[+ch.dataset.li], cx=+ch.dataset.bx, cy=cajasDe(l);
+    return {zpl:zpl(cedis,oc,l.gtin,l.piezas_por_caja,cx,cy),caja_x:cx,caja_y:cy,sku_interno:l.sku_interno};
+  });
+  if(API_BASE) encolarYSeguir(etiquetas);
+  else { document.getElementById('print-bg').classList.add('open');
+    document.getElementById('print-title').textContent='Imprimiendo etiquetas';
+    document.getElementById('reprint-row').style.display='none';
+    simularImpresion(etiquetas.length); }
 }
 
 /* pregunta al backend el avance real del trabajo de impresión */
@@ -817,6 +897,11 @@ document.getElementById('rp-go').onclick=()=>{
   document.getElementById('print-sub').textContent=`Reimprimiendo cajas ${f} a ${t} (${cnt} etiquetas)`;
   document.getElementById('reprint-row').style.display='none';
   if(API_BASE) imprimirReal(f,t); else simularImpresion(cnt);
+};
+document.getElementById('sel-print').onclick=imprimirSeleccionadas;
+document.getElementById('sel-clear').onclick=()=>{
+  document.querySelectorAll('#lblselect .boxchip.sel').forEach(c=>c.classList.remove('sel'));
+  actualizarSelCount();
 };
 /* mostrar banner de revisión si aplica */
 function checarRevision(d){
