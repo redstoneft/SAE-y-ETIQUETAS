@@ -341,6 +341,76 @@
   .banner.review{background:var(--wait-bg);color:var(--wait);border:1px solid #bcd0f7}
   .banner .bi{font-size:18px}
 
+  /* ===== Navegación por pestañas ===== */
+  .topnav{display:flex;gap:4px;padding:10px 24px 0;background:var(--paper);
+    border-bottom:1px solid var(--line)}
+  .navlink{padding:10px 18px;font-size:13px;font-weight:600;color:var(--steel);
+    border-bottom:2px solid transparent;border-radius:6px 6px 0 0}
+  .navlink:hover{color:var(--ink);background:var(--fog)}
+  .navlink.active{color:var(--blue);border-bottom-color:var(--blue)}
+  .view-pad{padding:22px 24px 32px;max-width:1500px}
+  .view-h{display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:16px;gap:12px;flex-wrap:wrap}
+  .view-h h2{font-size:17px;letter-spacing:-.02em}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .toolbar input,.toolbar select{padding:8px 10px;border:1px solid var(--line);
+    border-radius:7px;font-size:13px;font-family:inherit;background:var(--paper)}
+  /* tabla de pedidos */
+  .ptable{width:100%;border-collapse:collapse;font-size:13px;background:var(--paper);
+    border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .ptable thead th{text-align:left;font-size:10px;text-transform:uppercase;
+    letter-spacing:.06em;color:var(--steel);padding:11px 12px;font-weight:700;
+    background:var(--line-2);cursor:pointer;white-space:nowrap}
+  .ptable thead th.r{text-align:right}
+  .ptable tbody td{padding:11px 12px;border-bottom:1px solid var(--line-2);
+    font-variant-numeric:tabular-nums}
+  .ptable tbody tr{cursor:pointer}
+  .ptable tbody tr:hover{background:#fbfcfe}
+  .ptable td.oc{font-family:var(--mono);font-weight:700;color:var(--ink)}
+  .ptable td.r{text-align:right;font-family:var(--mono)}
+  .st-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+  .st-validado{background:var(--wait-bg);color:var(--wait)}
+  .st-con_errores,.st-revisar_manual{background:var(--stop-bg);color:var(--stop)}
+  .st-factura_creada{background:var(--wait-bg);color:var(--wait)}
+  .st-timbrada{background:var(--go-bg);color:var(--go)}
+  .rowbtn{background:var(--fog);color:var(--ink);border-radius:6px;padding:5px 10px;
+    font-size:12px;font-weight:600;margin-left:6px}
+  .rowbtn.del{background:var(--stop-bg);color:var(--stop)}
+  .empty-lg{text-align:center;color:var(--steel-l);padding:50px;background:var(--paper);
+    border:1px solid var(--line);border-radius:var(--r)}
+  /* kanban */
+  .kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .kcol{background:var(--fog);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:120px}
+  .kcol-h{font-size:12px;font-weight:700;color:var(--ink);padding:4px 6px 10px;
+    display:flex;justify-content:space-between;align-items:center}
+  .kcol-h .cnt{background:var(--paper);border:1px solid var(--line);border-radius:12px;
+    padding:1px 8px;font-family:var(--mono);font-size:11px;color:var(--steel)}
+  .kcard{background:var(--paper);border:1px solid var(--line);border-radius:8px;
+    padding:10px 11px;margin-bottom:8px;cursor:pointer;box-shadow:var(--sh)}
+  .kcard:hover{border-color:var(--blue)}
+  .kcard .koc{font-family:var(--mono);font-weight:700;font-size:13px;color:var(--ink)}
+  .kcard .kmeta{font-size:11px;color:var(--steel);margin-top:4px}
+  .kcard .kbar{height:4px;border-radius:3px;background:var(--line-2);margin-top:7px;overflow:hidden}
+  .kcard .kbar i{display:block;height:100%;background:var(--blue)}
+  @media(max-width:980px){.kanban{grid-template-columns:1fr 1fr}}
+  /* reportes */
+  .rep-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .rep-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);
+    padding:18px 20px;box-shadow:var(--sh)}
+  .rep-card .n{font-size:30px;font-weight:700;font-family:var(--narrow);line-height:1;
+    font-variant-numeric:tabular-nums}
+  .rep-card .l{font-size:11px;color:var(--steel);text-transform:uppercase;
+    letter-spacing:.06em;margin-top:6px;font-weight:600}
+  .rep-bars{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+  .rep-bars h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--steel);
+    margin-bottom:14px;font-weight:700}
+  .rbar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:12px}
+  .rbar-row .lbl{width:140px;color:var(--ink)}
+  .rbar-track{flex:1;height:14px;background:var(--line-2);border-radius:7px;overflow:hidden}
+  .rbar-track i{display:block;height:100%;border-radius:7px}
+  .rbar-row .val{width:40px;text-align:right;font-family:var(--mono);font-weight:600}
+  @media(max-width:980px){.rep-grid{grid-template-columns:1fr 1fr}}
+
   /* login */
   #login-overlay{display:none;position:fixed;inset:0;z-index:100;
     background:linear-gradient(180deg,var(--ink),var(--ink-2));
@@ -389,6 +459,14 @@
 
 <div class="kpis" id="kpis"></div>
 
+<nav class="topnav" id="topnav">
+  <button class="navlink active" data-view="operar">Operar</button>
+  <button class="navlink" data-view="pedidos">Pedidos</button>
+  <button class="navlink" data-view="tablero">Tablero</button>
+  <button class="navlink" data-view="reportes">Reportes</button>
+</nav>
+
+<div class="view" id="view-operar">
 <section class="flow" id="flow" style="display:none">
   <div class="flow-head">
     <span class="ttl">Recorrido del pedido</span>
@@ -492,6 +570,12 @@
     </div>
   </div>
 </div>
+
+</div><!-- /view-operar -->
+
+<div class="view" id="view-pedidos" style="display:none"></div>
+<div class="view" id="view-tablero" style="display:none"></div>
+<div class="view" id="view-reportes" style="display:none"></div>
 
 <div class="modo" id="modo"></div>
 
@@ -750,22 +834,170 @@ function history(){
   </div>`).join('');
 }
 
-/* trae KPIs e historial reciente REALES desde el backend */
+/* ===== Datos compartidos para las vistas ===== */
+let PEDIDOS=[];
+let VISTA='operar';
+let FILTRO={q:'',estatus:''};
+const EST_LBL={validado:'Validado',con_errores:'Con errores',revisar_manual:'Revisar a mano',factura_creada:'Factura sin timbrar',timbrada:'Timbrada'};
+
+/* trae KPIs, lista de pedidos y refresca la vista activa */
 async function cargarStats(){
-  if(!API_BASE){STATS={procesados:0,errores:0,porCapturar:0};hist=[];kpis();history();return;}
+  if(!API_BASE){STATS={procesados:0,errores:0,porCapturar:0};hist=[];PEDIDOS=[];kpis();history();refrescarVista();return;}
   try{
     const r=await fetch(API_BASE+'/api/historial');
     const d=await r.json();
-    const ps=d.pedidos||[];
-    STATS.procesados=ps.length;
-    STATS.errores=ps.filter(p=>p.estatus==='con_errores'||p.estatus==='revisar_manual').length;
-    STATS.porCapturar=ps.filter(p=>p.estatus==='validado'||p.estatus==='factura_creada').length;
+    PEDIDOS=d.pedidos||[];
+    STATS.procesados=PEDIDOS.length;
+    STATS.errores=PEDIDOS.filter(p=>p.estatus==='con_errores'||p.estatus==='revisar_manual').length;
+    STATS.porCapturar=PEDIDOS.filter(p=>p.estatus==='validado'||p.estatus==='factura_creada').length;
     const tx={validado:'Validado · pendiente en SAE',timbrada:'Timbrada',factura_creada:'Factura sin timbrar',con_errores:'Con errores',revisar_manual:'Revisar a mano'};
-    hist=ps.slice(0,5).map(p=>({oc:p.num_orden_compra,
+    hist=PEDIDOS.slice(0,5).map(p=>({oc:p.num_orden_compra,
       st:(p.estatus==='con_errores'||p.estatus==='revisar_manual')?'fail':(p.estatus==='timbrada'?'ok':'now'),
       tx:tx[p.estatus]||p.estatus}));
-    kpis();history();
+    kpis();history();refrescarVista();
   }catch(e){}
+}
+
+/* ===== Navegación entre vistas ===== */
+function showView(v){
+  VISTA=v;
+  ['operar','pedidos','tablero','reportes'].forEach(n=>{
+    const el=document.getElementById('view-'+n); if(el)el.style.display=(n===v)?'':'none';
+  });
+  document.querySelectorAll('#topnav .navlink').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+  refrescarVista();
+}
+function refrescarVista(){
+  if(VISTA==='pedidos')renderPedidos();
+  else if(VISTA==='tablero')renderTablero();
+  else if(VISTA==='reportes')renderReportes();
+}
+function fmtFecha(s){ if(!s)return '—'; const d=new Date(s); return d.toLocaleDateString('es-MX'); }
+function badge(est){ return `<span class="st-badge st-${est}">${EST_LBL[est]||est}</span>`; }
+
+/* ===== Vista PEDIDOS (tabla con filtros) ===== */
+function pedidosFiltrados(){
+  return PEDIDOS.filter(p=>{
+    if(FILTRO.estatus && p.estatus!==FILTRO.estatus) return false;
+    if(FILTRO.q && !String(p.num_orden_compra).includes(FILTRO.q)) return false;
+    return true;
+  });
+}
+function renderPedidos(){
+  const v=document.getElementById('view-pedidos');
+  const ps=pedidosFiltrados();
+  v.innerHTML=`<div class="view-pad">
+    <div class="view-h">
+      <h2>Pedidos (${ps.length})</h2>
+      <div class="toolbar">
+        <input type="text" id="pf-q" placeholder="Buscar OC…" value="${FILTRO.q}">
+        <select id="pf-est">
+          <option value="">Todos los estatus</option>
+          ${Object.keys(EST_LBL).map(k=>`<option value="${k}" ${FILTRO.estatus===k?'selected':''}>${EST_LBL[k]}</option>`).join('')}
+        </select>
+        <button class="rowbtn" id="pf-csv">⬇ Exportar CSV</button>
+      </div>
+    </div>
+    ${ps.length?`<table class="ptable">
+      <thead><tr>
+        <th>OC</th><th>Fecha</th><th>CEDIS</th><th>Estatus</th>
+        <th class="r">Líneas</th><th class="r">Etiquetas</th><th class="r">Total</th><th></th>
+      </tr></thead>
+      <tbody>${ps.map(p=>`<tr data-id="${p.id}" data-oc="${p.num_orden_compra}">
+        <td class="oc">${p.num_orden_compra}</td>
+        <td>${fmtFecha(p.creado_en)}</td>
+        <td>${p.cedis_codigo||'—'}</td>
+        <td>${badge(p.estatus)}</td>
+        <td class="r">${p.total_lineas||'—'}</td>
+        <td class="r">${p.etiquetas_impresas||0}/${p.etiquetas_total||0}</td>
+        <td class="r">${money(p.total||0)}</td>
+        <td class="r"><button class="rowbtn ver">Ver</button><button class="rowbtn del eli">Eliminar</button></td>
+      </tr>`).join('')}</tbody>
+    </table>`:'<div class="empty-lg">Sin pedidos. Sube un PDF en la pestaña Operar.</div>'}
+  </div>`;
+  // listeners
+  const q=document.getElementById('pf-q'); if(q) q.oninput=(e)=>{FILTRO.q=e.target.value.trim();renderPedidos();q2focus();};
+  const est=document.getElementById('pf-est'); if(est) est.onchange=(e)=>{FILTRO.estatus=e.target.value;renderPedidos();};
+  const csv=document.getElementById('pf-csv'); if(csv) csv.onclick=exportarCSV;
+  v.querySelectorAll('tbody tr').forEach(tr=>{
+    tr.querySelector('.ver').onclick=(e)=>{e.stopPropagation();reabrir(tr.dataset.id,tr.dataset.oc);};
+    tr.querySelector('.eli').onclick=(e)=>{e.stopPropagation();eliminarOC(tr.dataset.id,tr.dataset.oc);};
+    tr.onclick=()=>reabrir(tr.dataset.id,tr.dataset.oc);
+  });
+}
+let _qfocus=false;
+function q2focus(){ const q=document.getElementById('pf-q'); if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length);} }
+
+function exportarCSV(){
+  const ps=pedidosFiltrados();
+  const cols=['OC','Fecha','CEDIS','Estatus','Lineas','Etiquetas_impresas','Etiquetas_total','Total'];
+  const filas=ps.map(p=>[p.num_orden_compra,fmtFecha(p.creado_en),p.cedis_codigo||'',EST_LBL[p.estatus]||p.estatus,
+    p.total_lineas||0,p.etiquetas_impresas||0,p.etiquetas_total||0,p.total||0]);
+  const csv=[cols.join(','),...filas.map(f=>f.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(','))].join('\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='pedidos_'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(a.href);
+}
+
+/* ===== Vista TABLERO (kanban por etapa) ===== */
+function etapaDe(p){
+  if((p.etiquetas_impresas||0)>0) return 'impresos';
+  if(p.estatus==='timbrada'||p.estatus==='factura_creada') return 'sae';
+  if(p.estatus==='con_errores'||p.estatus==='revisar_manual') return 'revisar';
+  return 'validados';
+}
+function renderTablero(){
+  const v=document.getElementById('view-tablero');
+  const cols=[['revisar','Por revisar'],['validados','Validados'],['sae','En SAE'],['impresos','Impresos']];
+  const grupos={revisar:[],validados:[],sae:[],impresos:[]};
+  PEDIDOS.forEach(p=>grupos[etapaDe(p)].push(p));
+  v.innerHTML=`<div class="view-pad">
+    <div class="view-h"><h2>Tablero por etapa</h2></div>
+    <div class="kanban">${cols.map(([k,t])=>`
+      <div class="kcol"><div class="kcol-h">${t}<span class="cnt">${grupos[k].length}</span></div>
+      ${grupos[k].map(p=>{const pc=p.etiquetas_total?Math.round((p.etiquetas_impresas||0)/p.etiquetas_total*100):0;
+        return `<div class="kcard" data-id="${p.id}" data-oc="${p.num_orden_compra}">
+        <div class="koc">OC ${p.num_orden_compra}</div>
+        <div class="kmeta">${badge(p.estatus)} · ${money(p.total||0)}</div>
+        <div class="kmeta">${p.etiquetas_impresas||0}/${p.etiquetas_total||0} etiquetas · CEDIS ${p.cedis_codigo||'—'}</div>
+        <div class="kbar"><i style="width:${pc}%"></i></div></div>`;}).join('')||'<div style="font-size:11px;color:var(--steel-l);padding:8px">—</div>'}
+      </div>`).join('')}</div>
+  </div>`;
+  v.querySelectorAll('.kcard').forEach(c=>c.onclick=()=>reabrir(c.dataset.id,c.dataset.oc));
+}
+
+/* ===== Vista REPORTES ===== */
+function renderReportes(){
+  const v=document.getElementById('view-reportes');
+  const total=PEDIDOS.length;
+  const errores=PEDIDOS.filter(p=>p.estatus==='con_errores'||p.estatus==='revisar_manual').length;
+  const porSae=PEDIDOS.filter(p=>p.estatus==='validado'||p.estatus==='factura_creada').length;
+  const etqImp=PEDIDOS.reduce((a,p)=>a+(p.etiquetas_impresas||0),0);
+  const montoTot=PEDIDOS.reduce((a,p)=>a+(p.total||0),0);
+  const hoy=new Date().toISOString().slice(0,10);
+  const procHoy=PEDIDOS.filter(p=>(p.creado_en||'').slice(0,10)===hoy).length;
+  const porEst={};Object.keys(EST_LBL).forEach(k=>porEst[k]=PEDIDOS.filter(p=>p.estatus===k).length);
+  const maxEst=Math.max(1,...Object.values(porEst));
+  const colEst={validado:'var(--wait)',con_errores:'var(--stop)',revisar_manual:'var(--stop)',factura_creada:'var(--wait)',timbrada:'var(--go)'};
+  v.innerHTML=`<div class="view-pad">
+    <div class="view-h"><h2>Reportes</h2>
+      <button class="rowbtn" id="rep-csv">⬇ Exportar todo a CSV</button></div>
+    <div class="rep-grid">
+      <div class="rep-card"><div class="n">${total}</div><div class="l">Pedidos totales</div></div>
+      <div class="rep-card"><div class="n">${procHoy}</div><div class="l">Procesados hoy</div></div>
+      <div class="rep-card"><div class="n" style="color:var(--stop)">${errores}</div><div class="l">Con errores</div></div>
+      <div class="rep-card"><div class="n">${porSae}</div><div class="l">Por capturar en SAE</div></div>
+      <div class="rep-card"><div class="n">${etqImp}</div><div class="l">Etiquetas impresas</div></div>
+      <div class="rep-card"><div class="n">${money(montoTot)}</div><div class="l">Monto total</div></div>
+    </div>
+    <div class="rep-bars"><h3>Pedidos por estatus</h3>
+      ${Object.keys(EST_LBL).map(k=>`<div class="rbar-row">
+        <span class="lbl">${EST_LBL[k]}</span>
+        <span class="rbar-track"><i style="width:${porEst[k]/maxEst*100}%;background:${colEst[k]}"></i></span>
+        <span class="val">${porEst[k]}</span></div>`).join('')}
+    </div>
+  </div>`;
+  const c=document.getElementById('rep-csv'); if(c) c.onclick=exportarCSV;
 }
 
 /* ZPL builder (espejo del backend) */
@@ -900,6 +1132,7 @@ async function reabrir(id,oc){
     const d=await r.json();
     if(!r.ok){alert(d.error||'No se pudo abrir el pedido');return;}
     const ped=d.pedido;
+    showView('operar');       // regresar a la vista de trabajo
     cargar(ped);              // carga el pedido (paso 1)
     paso=3; render(); genLabels();   // muestra etiquetas + selector para reimprimir
     document.getElementById('hist-bg').classList.remove('open');
@@ -1215,6 +1448,9 @@ function checarRevision(d){
     b.classList.add('show');
   }else b.classList.remove('show');
 }
+/* navegación por pestañas */
+document.querySelectorAll('#topnav .navlink').forEach(b=>b.onclick=()=>showView(b.dataset.view));
+
 /* login wiring */
 document.getElementById('login-btn').onclick=hacerLogin;
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')hacerLogin();});
