@@ -703,10 +703,24 @@ async function cargarHistorial(q){
     <div style="flex:1"><div class="at" style="font-family:var(--mono)">OC ${i.num_orden_compra}</div>
     <div class="ax">${estLabel[i.estatus]||i.estatus} · ${money(i.total||0)} · ${i.etiquetas_impresas||0}/${i.etiquetas_total||0} etiquetas</div>
     <div class="atime">${new Date(i.creado_en).toLocaleString('es-MX')}</div></div>
-    <button class="hist-btn" style="background:var(--fog);color:var(--ink);align-self:center" onclick="reabrir('${i.num_orden_compra}')">Ver</button>
+    <button class="hist-btn" style="background:var(--fog);color:var(--ink);align-self:center" onclick="reabrir('${i.id||''}','${i.num_orden_compra}')">Ver</button>
     </div>`).join(''):'<div class="empty"><div class="e">○</div>Sin resultados</div>';
 }
-function reabrir(oc){alert('En producción: reabre el pedido OC '+oc+' para reimprimir o revisar.');}
+async function reabrir(id,oc){
+  if(!API_BASE){alert('Reabrir pedidos funciona con el backend conectado.\nOC '+oc);return;}
+  if(!id){alert('Este pedido no tiene id para reabrir.');return;}
+  try{
+    const r=await fetch(API_BASE+'/api/pedidos/'+id);
+    const d=await r.json();
+    if(!r.ok){alert(d.error||'No se pudo abrir el pedido');return;}
+    const ped=d.pedido;
+    cargar(ped);              // carga el pedido (paso 1)
+    paso=3; render(); genLabels();   // muestra etiquetas + selector para reimprimir
+    document.getElementById('hist-bg').classList.remove('open');
+    document.getElementById('hist-drawer').classList.remove('open');
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(e){alert('No se pudo contactar el backend: '+e.message);}
+}
 
 /* ===== Modal de impresión con avance ===== */
 function abrirModalImpresion(total){

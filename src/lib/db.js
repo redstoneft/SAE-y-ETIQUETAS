@@ -339,6 +339,41 @@ async function estadoTrabajoImpresion(jobId) {
   return data;
 }
 
+/** Reconstruye un pedido completo (encabezado + líneas) para reabrirlo en el
+ *  dashboard, con la misma forma que produce el extractor. */
+async function obtenerPedidoCompleto(id) {
+  if (!supabase) return null;
+  const { data: ped } = await supabase.from("pedidos").select("*").eq("id", id).single();
+  if (!ped) return null;
+  const { data: lns } = await supabase.from("pedido_lineas")
+    .select("*").eq("pedido_id", id).order("num_linea", { ascending: true });
+  const lineas = (lns || []).map((l) => ({
+    num_linea: l.num_linea, sku_walmart: l.sku_cliente, sku_interno: l.sku_interno,
+    gtin: l.gtin, color: l.color, cantidad: l.cantidad, cantidad_surtir: l.cantidad_surtir,
+    uom: l.uom, piezas_por_caja: l.piezas_por_caja, cajas: l.cajas,
+    precio_unitario: l.precio_unitario, total_linea: l.total_linea,
+  }));
+  const totalCajas = lineas.reduce((a, l) => a + (l.cajas || 0), 0);
+  return {
+    _id: ped.id, cliente: "WALMART", estatus: ped.estatus,
+    encabezado: {
+      num_orden_compra: ped.num_orden_compra, fecha_pedido: ped.fecha_pedido,
+      fecha_envio: ped.fecha_envio, fecha_cancelacion: ped.fecha_cancelacion,
+      tipo_orden: ped.tipo_orden, moneda: ped.moneda, departamento: ped.departamento,
+      evento_promocional: ped.evento_promocional, condicion_pago: ped.condicion_pago,
+      cedis_destino: ped.cedis_codigo, cedis_nombre: ped.cedis_codigo,
+      gln_destino: ped.gln_destino, formato_tienda: ped.formato_tienda,
+      instrucciones: ped.instrucciones, num_proveedor_walmart: "", nombre_proveedor: "",
+    },
+    lineas,
+    totales_pdf: { total: ped.total, total_lineas: ped.total_lineas, total_unidades: ped.total_unidades },
+    control: {
+      total_cajas_etiquetas: totalCajas,
+      coincide_total: true, coincide_unidades: true, coincide_num_lineas: true,
+    },
+  };
+}
+
 module.exports = {
   HAS_CREDS,
   getClienteId,
@@ -360,6 +395,7 @@ module.exports = {
   actualizarLoteImpresion,
   marcarRevisionManual,
   encolarImpresion,
+  obtenerPedidoCompleto,
   tomarTrabajoImpresion,
   reportarImpresion,
   estadoTrabajoImpresion,

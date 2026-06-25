@@ -133,6 +133,21 @@ app.post("/api/pedidos/upload", upload.single("file"), async (req, res) => {
 });
 
 /**
+ * Reabre un pedido guardado: devuelve el pedido completo (encabezado + líneas)
+ * para volver a verlo, reimprimir etiquetas o regenerar el archivo SAE.
+ */
+app.get("/api/pedidos/:id", async (req, res) => {
+  try {
+    const pedido = (cache.get(req.params.id)) || (await db.obtenerPedidoCompleto(req.params.id));
+    if (!pedido) return res.status(404).json({ error: "Pedido no encontrado" });
+    cache.set(req.params.id, pedido);
+    res.json({ ok: true, pedido });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
  * Genera el ARCHIVO DE IMPORTACIÓN de factura para SAE (.xlsx).
  * El usuario lo descarga y lo importa en SAE -> SAE crea la factura
  * SIN timbrar con su propia lógica (folios, impuestos, addenda).
