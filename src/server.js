@@ -24,6 +24,7 @@ const { extractFromBuffer } = require("./lib/walmartExtractor");
 const { validarPedido } = require("./lib/validaciones");
 const { generarEtiquetasPedido } = require("./lib/zplEngine");
 const { generarArchivoSAE, CONFIG_WALMART } = require("./lib/saeExport");
+const { AUTH_ENABLED, login, requireAuth } = require("./lib/auth");
 const db = require("./lib/db");
 
 const app = express();
@@ -36,14 +37,23 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 
 const cache = new Map();
 
 app.get("/api/health", (req, res) => {
-  res.json({ ok: true, modo: db.HAS_CREDS ? "supabase" : "dry", impresion: "estación USB (polling)" });
+  res.json({ ok: true, modo: db.HAS_CREDS ? "supabase" : "dry",
+    impresion: "estación USB (polling)", auth_required: AUTH_ENABLED });
+});
+
+// Login: devuelve un token si el usuario/clave es válido.
+app.post("/api/login", (req, res) => {
+  const { usuario, clave } = req.body || {};
+  const token = login((usuario || "").trim(), clave || "");
+  if (!token) return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
+  res.json({ ok: true, token, usuario: (usuario || "").trim() });
 });
 
 /**
  * Sube un PDF de Walmart: extrae, valida, guarda, decide estatus.
  * Si la extracción no es confiable, marca el pedido como "revisar_manual".
  */
-app.post("/api/pedidos/upload", upload.single("file"), async (req, res) => {
+app.post("/api/pedidos/upload", requireAuth, upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "Falta el archivo PDF (campo 'file')" });
 
@@ -136,7 +146,7 @@ app.post("/api/pedidos/upload", upload.single("file"), async (req, res) => {
  * Reabre un pedido guardado: devuelve el pedido completo (encabezado + líneas)
  * para volver a verlo, reimprimir etiquetas o regenerar el archivo SAE.
  */
-app.get("/api/pedidos/:id", async (req, res) => {
+app.get("/api/pedidos/:id", requireAuth, async (req, res) => {
   try {
     const pedido = (cache.get(req.params.id)) || (await db.obtenerPedidoCompleto(req.params.id));
     if (!pedido) return res.status(404).json({ error: "Pedido no encontrado" });
@@ -151,7 +161,7 @@ app.get("/api/pedidos/:id", async (req, res) => {
  * Elimina TODOS los pedidos guardados (con cascada). Va antes del :id para
  * que Express no lo confunda con un id.
  */
-app.delete("/api/pedidos", async (req, res) => {
+app.delete("/api/pedidos", requireAuth, async (req, res) => {
   try {
     const n = await db.eliminarTodosLosPedidos();
     cache.clear();
@@ -162,7 +172,7 @@ app.delete("/api/pedidos", async (req, res) => {
 });
 
 /** Elimina un pedido por id (con cascada a sus líneas, etiquetas, etc.). */
-app.delete("/api/pedidos/:id", async (req, res) => {
+app.delete("/api/pedidos/:id", requireAuth, async (req, res) => {
   try {
     await db.eliminarPedido(req.params.id);
     cache.delete(req.params.id);
@@ -180,7 +190,7 @@ app.delete("/api/pedidos/:id", async (req, res) => {
  * Body: { config: { folio, clienteSae, metodoPago, formaPagoSat, usoCfdi,
  *                    almacen, usarCantidadSurtir }, pedido? }
  */
-app.post("/api/pedidos/:id/sae", async (req, res) => {
+app.post("/api/pedidos/:id/sae", requireAuth, async (req, res) => {
   try {
     const pedidoId = req.params.id;
     let pedido = cache.get(pedidoId) || req.body?.pedido;
@@ -215,7 +225,7 @@ app.post("/api/pedidos/:id/sae", async (req, res) => {
 /**
  * Genera el ZPL de todas las etiquetas (una por caja) y las guarda.
  */
-app.post("/api/pedidos/:id/etiquetas", async (req, res) => {
+app.post("/api/pedidos/:id/etiquetas", requireAuth, async (req, res) => {
   try {
     const pedidoId = req.params.id;
     const pedido = cache.get(pedidoId) || req.body?.pedido;
@@ -242,7 +252,7 @@ app.post("/api/pedidos/:id/etiquetas", async (req, res) => {
  *         estacion?, desde?, hasta? }
  * desde/hasta = reimprimir solo ese rango de cajas.
  */
-app.post("/api/imprimir", async (req, res) => {
+app.post("/api/imprimir", requireAuth, async (req, res) => {
   try {
     const { pedido_id, etiquetas, estacion, desde, hasta } = req.body;
     if (!etiquetas || !etiquetas.length) return res.status(400).json({ error: "No hay etiquetas para imprimir" });
@@ -292,7 +302,7 @@ app.post("/api/print-station/:id/resultado", async (req, res) => {
 });
 
 // Estado de un trabajo de impresión (para que el dashboard muestre avance).
-app.get("/api/print-station/trabajo/:id", async (req, res) => {
+app.get("/api/print-station/trabajo/:id", requireAuth, async (req, res) => {
   try {
     const e = await db.estadoTrabajoImpresion(req.params.id);
     res.json(e || { error: "no encontrado" });
@@ -304,7 +314,7 @@ app.get("/api/print-station/trabajo/:id", async (req, res) => {
 /**
  * Editar la cantidad a surtir de una línea (antes de generar factura/etiquetas).
  */
-app.patch("/api/lineas/:id/cantidad", async (req, res) => {
+app.patch("/api/lineas/:id/cantidad", requireAuth, async (req, res) => {
   try {
     const { cantidad } = req.body;
     if (!Number.isInteger(cantidad) || cantidad < 0)
@@ -319,7 +329,7 @@ app.patch("/api/lineas/:id/cantidad", async (req, res) => {
 /**
  * Historial de pedidos con filtros: ?oc=&estatus=&desde=&hasta=
  */
-app.get("/api/historial", async (req, res) => {
+app.get("/api/historial", requireAuth, async (req, res) => {
   try {
     const r = await db.buscarHistorial({
       oc: req.query.oc, estatus: req.query.estatus,
@@ -334,11 +344,11 @@ app.get("/api/historial", async (req, res) => {
 /**
  * Alertas: listar no leídas / marcar leída.
  */
-app.get("/api/alertas", async (req, res) => {
+app.get("/api/alertas", requireAuth, async (req, res) => {
   const r = await db.listarAlertas(req.query.todas !== "1");
   res.json({ ok: true, alertas: r });
 });
-app.post("/api/alertas/:id/leida", async (req, res) => {
+app.post("/api/alertas/:id/leida", requireAuth, async (req, res) => {
   await db.marcarAlertaLeida(req.params.id);
   res.json({ ok: true });
 });

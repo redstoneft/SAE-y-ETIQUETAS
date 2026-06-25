@@ -338,6 +338,21 @@
   .banner.review{background:var(--wait-bg);color:#7a5800;border:1px solid #e8c97a}
   .banner .bi{font-size:18px}
 
+  /* login */
+  #login-overlay{display:none;position:fixed;inset:0;z-index:100;
+    background:linear-gradient(180deg,var(--ink),var(--ink-2));
+    align-items:center;justify-content:center}
+  .login-card{background:var(--paper);border-radius:14px;padding:32px 28px;width:340px;
+    max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.4);text-align:center}
+  .login-logo{width:44px;height:44px;border-radius:10px;margin:0 auto 14px;
+    background:linear-gradient(135deg,var(--amber),#e8890b);display:grid;place-items:center;
+    font-weight:800;color:var(--ink);font-size:22px}
+  .login-card h2{font-size:20px;letter-spacing:-.02em}
+  .login-sub{font-size:13px;color:var(--steel);margin:4px 0 18px}
+  .login-card input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;
+    font-size:14px;margin-bottom:10px;font-family:inherit}
+  .login-card input:focus{outline:2px solid var(--focus);outline-offset:1px;border-color:var(--focus)}
+  .login-msg{font-size:12px;color:var(--stop);min-height:16px;margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -351,9 +366,23 @@
     <button class="hist-btn" id="open-hist" title="Historial"><span>⊞</span> Historial</button>
     <button class="alert-btn" id="open-alerts" title="Alertas">
       <span>◔</span><span class="alert-count" id="alert-count" style="display:none">0</span></button>
-    <div class="conn"><span class="dot"></span><span id="conn">en línea</span></div>
+    <div class="conn"><span class="dot"></span><span id="conn">en línea</span> <span id="whoami" style="color:#fff;opacity:.8"></span></div>
+    <button class="hist-btn" id="logout-btn" title="Cerrar sesión" style="display:none">Salir</button>
   </div>
 </header>
+
+<!-- Pantalla de inicio de sesión -->
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">E</div>
+    <h2>Embarque</h2>
+    <p class="login-sub">Inicia sesión para continuar</p>
+    <input type="text" id="login-user" placeholder="Usuario" autocomplete="username">
+    <input type="password" id="login-pass" placeholder="Contraseña" autocomplete="current-password">
+    <div class="login-msg" id="login-msg"></div>
+    <button class="btn primary" id="login-btn" style="width:100%">Entrar</button>
+  </div>
+</div>
 
 <div class="kpis" id="kpis"></div>
 
@@ -507,6 +536,55 @@
 
 <script>
 const API_BASE = "https://sae-y-etiquetas-production.up.railway.app";
+/* ===== Autenticación: token + wrapper de fetch ===== */
+let TOKEN=localStorage.getItem('apptoken')||'';
+let USUARIO=localStorage.getItem('appuser')||'';
+const _fetch=window.fetch.bind(window);
+window.fetch=(url,opts={})=>{
+  if(typeof url==='string' && API_BASE && url.indexOf(API_BASE)===0){
+    const headers=Object.assign({},opts.headers||{});
+    if(TOKEN) headers['Authorization']='Bearer '+TOKEN;
+    opts=Object.assign({},opts,{headers});
+    return _fetch(url,opts).then(r=>{ if(r.status===401) cerrarSesion(true); return r; });
+  }
+  return _fetch(url,opts);
+};
+function mostrarLogin(){const o=document.getElementById('login-overlay');if(o)o.style.display='flex';
+  const lb=document.getElementById('logout-btn');if(lb)lb.style.display='none';}
+function cerrarSesion(expirado){
+  TOKEN='';USUARIO='';localStorage.removeItem('apptoken');localStorage.removeItem('appuser');
+  const m=document.getElementById('login-msg');if(m)m.textContent=expirado?'Tu sesión expiró. Inicia de nuevo.':'';
+  actualizarUsuarioUI();mostrarLogin();
+}
+function actualizarUsuarioUI(){
+  const w=document.getElementById('whoami');if(w)w.textContent=USUARIO?('· '+USUARIO):'';
+  const lb=document.getElementById('logout-btn');if(lb)lb.style.display=USUARIO?'inline-flex':'none';
+}
+async function hacerLogin(){
+  const u=document.getElementById('login-user').value.trim();
+  const c=document.getElementById('login-pass').value;
+  const msg=document.getElementById('login-msg');msg.style.color='var(--stop)';msg.textContent='Entrando…';
+  try{
+    const r=await _fetch(API_BASE+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({usuario:u,clave:c})});
+    const d=await r.json();
+    if(!r.ok){msg.textContent=d.error||'No se pudo entrar';return;}
+    TOKEN=d.token;USUARIO=d.usuario;
+    localStorage.setItem('apptoken',TOKEN);localStorage.setItem('appuser',USUARIO);
+    document.getElementById('login-overlay').style.display='none';
+    document.getElementById('login-pass').value='';msg.textContent='';
+    actualizarUsuarioUI();cargarStats();cargarAlertas();
+  }catch(e){msg.textContent='Error de conexión';}
+}
+async function initAuth(){
+  if(!API_BASE){actualizarUsuarioUI();return;}
+  try{
+    const r=await _fetch(API_BASE+'/api/health');const d=await r.json();
+    if(d.auth_required && !TOKEN){mostrarLogin();}
+    else{actualizarUsuarioUI();}
+  }catch(e){}
+}
+
 /* etiqueta HORIZONTAL: 101.6 x 84 mm @203dpi -> 812 x 671 dots */
 const PW_DOTS=812, LL_DOTS=671;
 const LABELARY = "https://api.labelary.com/v1/printers/8dpmm/labels/4x3.31/0/";
@@ -1134,6 +1212,13 @@ function checarRevision(d){
     b.classList.add('show');
   }else b.classList.remove('show');
 }
+/* login wiring */
+document.getElementById('login-btn').onclick=hacerLogin;
+document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')hacerLogin();});
+document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('login-pass').focus();});
+document.getElementById('logout-btn').onclick=()=>cerrarSesion(false);
+initAuth();
+
 cargarAlertas();
 cargarStats();
 
