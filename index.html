@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Embarque · Pedidos Walmart → SAE → Zebra</title>
+<title>SAE y Etiquetas · Pedidos Walmart → SAE → Zebra</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Archivo+Narrow:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -17,14 +17,17 @@
     --paper:#ffffff;
     --line:#dde4ed;
     --line-2:#eef2f7;
-    --go:#0f7d4d;           /* verde paso */
+    --go:#0f7d4d;           /* verde: éxito/validado */
     --go-bg:#e3f3ea;
-    --stop:#c2410c;         /* naranja quemado: bloqueo */
-    --stop-bg:#fcece3;
-    --wait:#a16207;         /* ambar: en proceso */
-    --wait-bg:#fbf3df;
-    --focus:#2563eb;
-    --amber:#f5a623;        /* acento Walmart-ish */
+    --stop:#dc2626;         /* ROJO: bloqueo/error/alertas */
+    --stop-bg:#fdeaea;
+    --wait:#1d4ed8;         /* AZUL: en proceso */
+    --wait-bg:#e7eefc;
+    --focus:#2563eb;        /* azul de acento */
+    --blue:#2563eb;
+    --blue-d:#1d4ed8;
+    --red:#dc2626;
+    --amber:#dc2626;        /* (compat) ahora rojo */
     --mono:'JetBrains Mono',ui-monospace,monospace;
     --sans:'Archivo',system-ui,sans-serif;
     --narrow:'Archivo Narrow','Archivo',sans-serif;
@@ -38,7 +41,7 @@
   button{font-family:inherit;cursor:pointer;border:none;background:none}
   button:focus-visible,[tabindex]:focus-visible,input:focus-visible{
     outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
-  ::selection{background:var(--amber);color:var(--ink)}
+  ::selection{background:var(--blue);color:#fff}
 
   /* ===== Header ===== */
   header{background:linear-gradient(180deg,var(--ink),var(--ink-2));
@@ -47,8 +50,8 @@
     box-shadow:0 1px 0 rgba(0,0,0,.2)}
   .brand{display:flex;align-items:center;gap:14px}
   .brand .logo{width:30px;height:30px;border-radius:7px;
-    background:linear-gradient(135deg,var(--amber),#e8890b);
-    display:grid;place-items:center;font-weight:800;color:var(--ink);font-size:16px;
+    background:linear-gradient(135deg,var(--blue),var(--red));
+    display:grid;place-items:center;font-weight:800;color:#fff;font-size:13px;letter-spacing:-.5px;
     box-shadow:0 2px 8px rgba(245,166,35,.3)}
   .brand b{font-size:17px;font-weight:700;letter-spacing:-.02em}
   .brand .path{font-family:var(--mono);font-size:11px;color:#8aa3c4;
@@ -335,7 +338,7 @@
   .banner{margin:0 24px 0;padding:13px 18px;border-radius:10px;display:none;
     align-items:center;gap:11px;font-size:13.5px;margin-top:20px}
   .banner.show{display:flex}
-  .banner.review{background:var(--wait-bg);color:#7a5800;border:1px solid #e8c97a}
+  .banner.review{background:var(--wait-bg);color:var(--wait);border:1px solid #bcd0f7}
   .banner .bi{font-size:18px}
 
   /* login */
@@ -345,8 +348,8 @@
   .login-card{background:var(--paper);border-radius:14px;padding:32px 28px;width:340px;
     max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.4);text-align:center}
   .login-logo{width:44px;height:44px;border-radius:10px;margin:0 auto 14px;
-    background:linear-gradient(135deg,var(--amber),#e8890b);display:grid;place-items:center;
-    font-weight:800;color:var(--ink);font-size:22px}
+    background:linear-gradient(135deg,var(--blue),var(--red));display:grid;place-items:center;
+    font-weight:800;color:#fff;font-size:18px;letter-spacing:-.5px}
   .login-card h2{font-size:20px;letter-spacing:-.02em}
   .login-sub{font-size:13px;color:var(--steel);margin:4px 0 18px}
   .login-card input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;
@@ -358,8 +361,8 @@
 <body>
 <header>
   <div class="brand">
-    <div class="logo">E</div>
-    <b>Embarque</b>
+    <div class="logo">SE</div>
+    <b>SAE y Etiquetas</b>
     <span class="path">WALMART → SAE → ZEBRA</span>
   </div>
   <div class="hdr-right">
@@ -374,8 +377,8 @@
 <!-- Pantalla de inicio de sesión -->
 <div id="login-overlay">
   <div class="login-card">
-    <div class="login-logo">E</div>
-    <h2>Embarque</h2>
+    <div class="login-logo">SE</div>
+    <h2>SAE y Etiquetas</h2>
     <p class="login-sub">Inicia sesión para continuar</p>
     <input type="text" id="login-user" placeholder="Usuario" autocomplete="username">
     <input type="password" id="login-pass" placeholder="Contraseña" autocomplete="current-password">
