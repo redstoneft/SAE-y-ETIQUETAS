@@ -416,9 +416,9 @@
             <div class="cal-ctrl"><label>Altura del código: <span id="cal-bhv"></span></label>
               <input type="range" id="cal-bh" min="50" max="140" step="2"></div>
             <div class="cal-ctrl"><label>Separación entre filas: <span id="cal-dyv"></span></label>
-              <input type="range" id="cal-dy" min="110" max="185" step="1"></div>
+              <input type="range" id="cal-dy" min="95" max="150" step="1"></div>
             <div class="cal-ctrl"><label>Inicio vertical: <span id="cal-y0v"></span></label>
-              <input type="range" id="cal-y0" min="20" max="150" step="1"></div>
+              <input type="range" id="cal-y0" min="10" max="120" step="1"></div>
           </div>
           <div class="cal-actions">
             <button class="btn" id="cal-reset">Restaurar valores</button>
@@ -504,7 +504,9 @@
 
 <script>
 const API_BASE = "https://sae-y-etiquetas-production.up.railway.app";
-const LABELARY = "https://api.labelary.com/v1/printers/8dpmm/labels/3.31x4.0/0/";
+/* etiqueta HORIZONTAL: 101.6 x 84 mm @203dpi -> 812 x 671 dots */
+const PW_DOTS=812, LL_DOTS=671;
+const LABELARY = "https://api.labelary.com/v1/printers/8dpmm/labels/4x3.31/0/";
 const DEMO = {"cliente":"WALMART","encabezado":{"num_orden_compra":"8834970382","fecha_pedido":"2026-06-18","fecha_envio":"2026-06-18","fecha_cancelacion":"2026-06-25","tipo_orden":"0033","moneda":"MXN","departamento":"00014","evento_promocional":"POS REPLEN","condicion_pago":"NET 90 based on Receipt of Goods","num_proveedor_walmart":"826370140","nombre_proveedor":"FUTUREENTS TECH SA DE CV","formato_tienda":"BODEGA","cedis_nombre":"CD NAVE 1 SECOS 7494","cedis_destino":"7494","gln_destino":"7507003116675","instrucciones":"NO PRETICKET"},"lineas":[{"num_linea":"001","sku_walmart":"101581796","sku_interno":"SIC24G","gtin":"7500462718718","color":"GRIS","cantidad":168,"uom":"EA","piezas_por_caja":6,"cajas":28,"precio_unitario":120.45,"total_linea":20235.6},{"num_linea":"002","sku_walmart":"101581797","sku_interno":"SIC20G","gtin":"7500462718695","color":"GRIS","cantidad":108,"uom":"EA","piezas_por_caja":6,"cajas":18,"precio_unitario":98.2,"total_linea":10605.6},{"num_linea":"003","sku_walmart":"101581798","sku_interno":"SIC28G","gtin":"7500462718817","color":"GRIS","cantidad":102,"uom":"EA","piezas_por_caja":6,"cajas":17,"precio_unitario":146,"total_linea":14892},{"num_linea":"004","sku_walmart":"101581799","sku_interno":"CIC16G","gtin":"7500462719005","color":"GRIS","cantidad":36,"uom":"EA","piezas_por_caja":4,"cajas":9,"precio_unitario":147.15,"total_linea":5297.4},{"num_linea":"005","sku_walmart":"101581800","sku_interno":"OIC24G","gtin":"7500462719036","color":"GRIS","cantidad":80,"uom":"EA","piezas_por_caja":4,"cajas":20,"precio_unitario":232,"total_linea":18560},{"num_linea":"006","sku_walmart":"101581801","sku_interno":"BIC24G","gtin":"7500462719050","color":"GRIS","cantidad":72,"uom":"EA","piezas_por_caja":4,"cajas":18,"precio_unitario":205,"total_linea":14760}],"totales_pdf":{"total":84350.6,"total_lineas":6,"total_unidades":566},"control":{"suma_extendido_calculado":84350.6,"coincide_total":true,"suma_unidades_calculado":566,"coincide_unidades":true,"num_lineas_calculado":6,"coincide_num_lineas":true,"total_cajas_etiquetas":110}};
 
 let pedido = null, paso = 0;
@@ -647,12 +649,13 @@ function history(){
 /* posiciones de la etiqueta (ajustables y guardadas en este navegador).
    XL = X del texto, XB = X del código, FS = tamaño de letra,
    Y0 = inicio vertical, DY = separación entre filas, BH = altura del código */
-const LAYOUT_DEF={XL:30,XB:330,FS:22,Y0:70,DY:150,BH:90};
+const LAYOUT_DEF={XL:30,XB:380,FS:22,Y0:30,DY:128,BH:80};
 let LAYOUT=Object.assign({},LAYOUT_DEF,(()=>{try{return JSON.parse(localStorage.getItem('zlayout')||'{}')}catch(e){return{}}})());
 
 function zpl(cedis,oc,gtin,piezas,cx,cy){
-  const A=671,L=812;
+  const A=PW_DOTS,L=LL_DOTS;
   const XL=LAYOUT.XL,XB=LAYOUT.XB,FS=LAYOUT.FS,Y0=LAYOUT.Y0,DY=LAYOUT.DY,BH=LAYOUT.BH;
+  cedis=(cedis==null?'':String(cedis)); oc=(oc==null?'':String(oc));
   const ean=String(gtin).replace(/\D/g,'');
   const sec=(y,t,d,sym)=>{
     let s=`^FO${XL},${y+30}^A0N,${FS},${FS}^FD${t}^FS\n^FO${XB},${y}^BY2\n`;
@@ -888,8 +891,8 @@ function abrirCalibrador(){
   if(!panel.classList.contains('open')) return;
   calTmp=Object.assign({},LAYOUT);
   const stage=document.getElementById('cal-stage');
-  stage.style.width=(671*CAL_SCALE)+'px';
-  stage.style.height=(812*CAL_SCALE)+'px';
+  stage.style.width=(PW_DOTS*CAL_SCALE)+'px';
+  stage.style.height=(LL_DOTS*CAL_SCALE)+'px';
   ['fs','bh','dy','y0'].forEach(k=>{
     document.getElementById('cal-'+k).value=calTmp[{fs:'FS',bh:'BH',dy:'DY',y0:'Y0'}[k]];
   });

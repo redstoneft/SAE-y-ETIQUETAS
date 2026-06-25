@@ -38,8 +38,11 @@ function extractHeader(text) {
   h.num_proveedor_walmart = grab(/Supplier Number\s+(\d+)/, text);
   h.nombre_proveedor = grab(/Proveedor\s*\n([A-Z][^\n]+)/, text);
   h.formato_tienda = grab(/Formato De Tienda\s*\n(BODEGA|TIENDA)/, text);
-  h.cedis_nombre = grab(/Enviar a:\s*\n(CD[^\n]+)/, text);
-  h.cedis_destino = grab(/Enviar a:\s*\nCD[^\n]*?(\d{4,})/, text);
+  // El destino puede venir como "CD NAVE 1 SECOS 7494" o "SECOS CD GUADALAJARA 7493".
+  // Tomamos la línea completa tras "Enviar a:" y de ahí el código de 4-5 dígitos,
+  // sin asumir que empiece con "CD".
+  h.cedis_nombre = grab(/Enviar a:\s*\n([^\n]+)/, text);
+  h.cedis_destino = grab(/Enviar a:\s*\n[^\n]*?(\d{4,5})(?=\s|$)/m, text);
   h.gln_destino = grab(/GLN\s+(\d+)/, text);
   h.instrucciones = grab(/Instrucciones de orden\s*\n([^\n]+)/, text);
   for (const k of Object.keys(h)) {
