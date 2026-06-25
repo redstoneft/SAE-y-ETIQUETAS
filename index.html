@@ -415,6 +415,8 @@
               <input type="range" id="cal-fs" min="14" max="40" step="1"></div>
             <div class="cal-ctrl"><label>Altura del código: <span id="cal-bhv"></span></label>
               <input type="range" id="cal-bh" min="50" max="140" step="2"></div>
+            <div class="cal-ctrl"><label>Grosor del código (escaneo): <span id="cal-bwv"></span></label>
+              <input type="range" id="cal-bw" min="2" max="5" step="1"></div>
             <div class="cal-ctrl"><label>Separación entre filas: <span id="cal-dyv"></span></label>
               <input type="range" id="cal-dy" min="95" max="150" step="1"></div>
             <div class="cal-ctrl"><label>Inicio vertical: <span id="cal-y0v"></span></label>
@@ -649,16 +651,16 @@ function history(){
 /* posiciones de la etiqueta (ajustables y guardadas en este navegador).
    XL = X del texto, XB = X del código, FS = tamaño de letra,
    Y0 = inicio vertical, DY = separación entre filas, BH = altura del código */
-const LAYOUT_DEF={XL:30,XB:380,FS:22,Y0:30,DY:128,BH:80};
+const LAYOUT_DEF={XL:30,XB:380,FS:22,Y0:30,DY:128,BH:80,BW:3};
 let LAYOUT=Object.assign({},LAYOUT_DEF,(()=>{try{return JSON.parse(localStorage.getItem('zlayout')||'{}')}catch(e){return{}}})());
 
 function zpl(cedis,oc,gtin,piezas,cx,cy){
   const A=PW_DOTS,L=LL_DOTS;
-  const XL=LAYOUT.XL,XB=LAYOUT.XB,FS=LAYOUT.FS,Y0=LAYOUT.Y0,DY=LAYOUT.DY,BH=LAYOUT.BH;
+  const XL=LAYOUT.XL,XB=LAYOUT.XB,FS=LAYOUT.FS,Y0=LAYOUT.Y0,DY=LAYOUT.DY,BH=LAYOUT.BH,BW=LAYOUT.BW||3;
   cedis=(cedis==null?'':String(cedis)); oc=(oc==null?'':String(oc));
   const ean=String(gtin).replace(/\D/g,'');
   const sec=(y,t,d,sym)=>{
-    let s=`^FO${XL},${y+30}^A0N,${FS},${FS}^FD${t}^FS\n^FO${XB},${y}^BY2\n`;
+    let s=`^FO${XL},${y+30}^A0N,${FS},${FS}^FD${t}^FS\n^FO${XB},${y}^BY${BW}\n`;
     s+=(sym==='E'&&ean.length===13)?`^BEN,${BH},Y,N^FD${ean}^FS`:`^BCN,${BH},Y,N,N^FD${d}^FS`;
     return s;
   };
@@ -893,8 +895,8 @@ function abrirCalibrador(){
   const stage=document.getElementById('cal-stage');
   stage.style.width=(PW_DOTS*CAL_SCALE)+'px';
   stage.style.height=(LL_DOTS*CAL_SCALE)+'px';
-  ['fs','bh','dy','y0'].forEach(k=>{
-    document.getElementById('cal-'+k).value=calTmp[{fs:'FS',bh:'BH',dy:'DY',y0:'Y0'}[k]];
+  ['fs','bh','dy','y0','bw'].forEach(k=>{
+    document.getElementById('cal-'+k).value=calTmp[{fs:'FS',bh:'BH',dy:'DY',y0:'Y0',bw:'BW'}[k]];
   });
   sincronizarCal();
   renderCalPreview();
@@ -906,6 +908,7 @@ function sincronizarCal(){
   document.getElementById('cal-bhv').textContent=calTmp.BH;
   document.getElementById('cal-dyv').textContent=calTmp.DY;
   document.getElementById('cal-y0v').textContent=calTmp.Y0;
+  document.getElementById('cal-bwv').textContent=calTmp.BW;
 }
 function renderCalPreview(){
   clearTimeout(calTimer);
@@ -1040,12 +1043,12 @@ document.getElementById('sel-clear').onclick=()=>{
 document.getElementById('cal-toggle').onclick=abrirCalibrador;
 hacerArrastrable(document.getElementById('cal-gtext'),'XL');
 hacerArrastrable(document.getElementById('cal-gbc'),'XB');
-[['cal-fs','FS'],['cal-bh','BH'],['cal-dy','DY'],['cal-y0','Y0']].forEach(([id,prop])=>{
+[['cal-fs','FS'],['cal-bh','BH'],['cal-dy','DY'],['cal-y0','Y0'],['cal-bw','BW']].forEach(([id,prop])=>{
   document.getElementById(id).oninput=(e)=>{calTmp[prop]=+e.target.value;sincronizarCal();renderCalPreview();};
 });
 document.getElementById('cal-reset').onclick=()=>{
   calTmp=Object.assign({},LAYOUT_DEF);
-  ['fs','bh','dy','y0'].forEach(k=>{document.getElementById('cal-'+k).value=calTmp[{fs:'FS',bh:'BH',dy:'DY',y0:'Y0'}[k]];});
+  ['fs','bh','dy','y0','bw'].forEach(k=>{document.getElementById('cal-'+k).value=calTmp[{fs:'FS',bh:'BH',dy:'DY',y0:'Y0',bw:'BW'}[k]];});
   sincronizarCal();renderCalPreview();
 };
 document.getElementById('cal-save').onclick=()=>{

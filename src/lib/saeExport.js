@@ -78,6 +78,7 @@ function construirRenglones(pedido, cfg) {
     row["Clave del artículo"] = l.sku_interno; // SIC24G...
     row["Cantidad"] = cantidad;
     row["Precio"] = l.precio_unitario;
+    row["Observaciones de partida"] = l.gtin || ""; // EAN13 en observaciones de partida
     row["Método de pago"] = cfg.metodoPago || "PUE";
     row["Forma de Pago SAT"] = cfg.formaPagoSat || "01";
     row["Uso CFDI"] = cfg.usoCfdi || "G01";
