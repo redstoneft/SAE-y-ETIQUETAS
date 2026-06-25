@@ -158,7 +158,8 @@ app.get("/api/pedidos/:id", async (req, res) => {
 app.post("/api/pedidos/:id/sae", async (req, res) => {
   try {
     const pedidoId = req.params.id;
-    const pedido = cache.get(pedidoId) || req.body?.pedido;
+    let pedido = cache.get(pedidoId) || req.body?.pedido;
+    if (!pedido && pedidoId) pedido = await db.obtenerPedidoCompleto(pedidoId);
     if (!pedido) return res.status(404).json({ error: "Pedido no encontrado; reenvialo en body.pedido" });
 
     // config real de Walmart por defecto; se puede sobreescribir en el body
