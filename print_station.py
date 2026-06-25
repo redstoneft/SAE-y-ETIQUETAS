@@ -65,7 +65,11 @@ def imprimir_raw(zpl, printer_name):
     """Manda ZPL crudo a la Zebra por la cola RAW de Windows."""
     import win32print
     data = zpl.encode("utf-8")
-    h = win32print.OpenPrinter(printer_name)
+    # PRINTER_ACCESS_USE basta para imprimir y NO requiere admin.
+    # Sin esto, OpenPrinter pide PRINTER_ALL_ACCESS y Windows responde
+    # "Acceso denegado" (error 5) salvo que se corra como administrador.
+    h = win32print.OpenPrinter(printer_name,
+                               {"DesiredAccess": win32print.PRINTER_ACCESS_USE})
     try:
         win32print.StartDocPrinter(h, 1, ("Etiqueta ZPL", None, "RAW"))
         win32print.StartPagePrinter(h)
