@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AgenteSAE</RootNamespace>
+    <AssemblyName>AgenteSAE</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Acceso a InterBase/Firebird (el motor de SAE 10). 
+         FirebirdSql.Data.FirebirdClient lee bases Firebird/InterBase.
+         Si tu InterBase Devart requiere el cliente propietario, ver README. -->
+    <PackageReference Include="FirebirdSql.Data.FirebirdClient" Version="10.3.1" />
+    <!-- Lectura de configuracion (appsettings.json) -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+    <!-- Logging a archivo -->
+    <PackageReference Include="Serilog" Version="4.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+  </ItemGroup>
+
+</Project>
