@@ -513,11 +513,8 @@ const LABELARY = "https://api.labelary.com/v1/printers/8dpmm/labels/4x3.31/0/";
 const DEMO = {"cliente":"WALMART","encabezado":{"num_orden_compra":"8834970382","fecha_pedido":"2026-06-18","fecha_envio":"2026-06-18","fecha_cancelacion":"2026-06-25","tipo_orden":"0033","moneda":"MXN","departamento":"00014","evento_promocional":"POS REPLEN","condicion_pago":"NET 90 based on Receipt of Goods","num_proveedor_walmart":"826370140","nombre_proveedor":"FUTUREENTS TECH SA DE CV","formato_tienda":"BODEGA","cedis_nombre":"CD NAVE 1 SECOS 7494","cedis_destino":"7494","gln_destino":"7507003116675","instrucciones":"NO PRETICKET"},"lineas":[{"num_linea":"001","sku_walmart":"101581796","sku_interno":"SIC24G","gtin":"7500462718718","color":"GRIS","cantidad":168,"uom":"EA","piezas_por_caja":6,"cajas":28,"precio_unitario":120.45,"total_linea":20235.6},{"num_linea":"002","sku_walmart":"101581797","sku_interno":"SIC20G","gtin":"7500462718695","color":"GRIS","cantidad":108,"uom":"EA","piezas_por_caja":6,"cajas":18,"precio_unitario":98.2,"total_linea":10605.6},{"num_linea":"003","sku_walmart":"101581798","sku_interno":"SIC28G","gtin":"7500462718817","color":"GRIS","cantidad":102,"uom":"EA","piezas_por_caja":6,"cajas":17,"precio_unitario":146,"total_linea":14892},{"num_linea":"004","sku_walmart":"101581799","sku_interno":"CIC16G","gtin":"7500462719005","color":"GRIS","cantidad":36,"uom":"EA","piezas_por_caja":4,"cajas":9,"precio_unitario":147.15,"total_linea":5297.4},{"num_linea":"005","sku_walmart":"101581800","sku_interno":"OIC24G","gtin":"7500462719036","color":"GRIS","cantidad":80,"uom":"EA","piezas_por_caja":4,"cajas":20,"precio_unitario":232,"total_linea":18560},{"num_linea":"006","sku_walmart":"101581801","sku_interno":"BIC24G","gtin":"7500462719050","color":"GRIS","cantidad":72,"uom":"EA","piezas_por_caja":4,"cajas":18,"precio_unitario":205,"total_linea":14760}],"totales_pdf":{"total":84350.6,"total_lineas":6,"total_unidades":566},"control":{"suma_extendido_calculado":84350.6,"coincide_total":true,"suma_unidades_calculado":566,"coincide_unidades":true,"num_lineas_calculado":6,"coincide_num_lineas":true,"total_cajas_etiquetas":110}};
 
 let pedido = null, paso = 0;
-const hist = [
-  {oc:"6283703667", st:"ok",  tx:"Factura capturada · 92 etiquetas impresas"},
-  {oc:"8821145590", st:"now", tx:"Pendiente de revisar en SAE"},
-  {oc:"8819923011", st:"fail",tx:"Precio fuera de lista autorizada"},
-];
+let hist = [];   // historial reciente real (se llena desde el backend)
+let STATS = {procesados:0, errores:0, porCapturar:0};
 
 const $=s=>document.querySelector(s);
 const fmt=n=>new Intl.NumberFormat('es-MX').format(n);
@@ -533,9 +530,9 @@ function validar(p){
 function kpis(){
   const d=[
     {n:pedido?1:0,l:'Pedidos nuevos'},
-    {n:12,l:'Procesados hoy'},
-    {n:1,l:'Con errores',w:true},
-    {n:8,l:'Por capturar en SAE'},
+    {n:STATS.procesados,l:'Procesados'},
+    {n:STATS.errores,l:'Con errores',w:STATS.errores>0},
+    {n:STATS.porCapturar,l:'Por capturar en SAE'},
     {n:pedido&&paso>=3?pedido.control.total_cajas_etiquetas:0,l:'Etiquetas pendientes'},
   ];
   $('#kpis').innerHTML=d.map(k=>`<div class="kpi ${k.w?'warn':''}">
@@ -665,10 +662,29 @@ function acts(){
 }
 
 function history(){
+  if(!hist.length){$('#hist').innerHTML='<div class="it" style="color:var(--steel-l)">Sin pedidos aún</div>';return;}
   $('#hist').innerHTML=hist.map(h=>`<div class="it">
     <span class="oc">OC ${h.oc}</span><span class="tx">${h.tx}</span>
     <span class="tag ${h.st}">${{ok:'listo',now:'en sae',fail:'error'}[h.st]}</span>
   </div>`).join('');
+}
+
+/* trae KPIs e historial reciente REALES desde el backend */
+async function cargarStats(){
+  if(!API_BASE){STATS={procesados:0,errores:0,porCapturar:0};hist=[];kpis();history();return;}
+  try{
+    const r=await fetch(API_BASE+'/api/historial');
+    const d=await r.json();
+    const ps=d.pedidos||[];
+    STATS.procesados=ps.length;
+    STATS.errores=ps.filter(p=>p.estatus==='con_errores'||p.estatus==='revisar_manual').length;
+    STATS.porCapturar=ps.filter(p=>p.estatus==='validado'||p.estatus==='factura_creada').length;
+    const tx={validado:'Validado · pendiente en SAE',timbrada:'Timbrada',factura_creada:'Factura sin timbrar',con_errores:'Con errores',revisar_manual:'Revisar a mano'};
+    hist=ps.slice(0,5).map(p=>({oc:p.num_orden_compra,
+      st:(p.estatus==='con_errores'||p.estatus==='revisar_manual')?'fail':(p.estatus==='timbrada'?'ok':'now'),
+      tx:tx[p.estatus]||p.estatus}));
+    kpis();history();
+  }catch(e){}
 }
 
 /* ZPL builder (espejo del backend) */
@@ -819,6 +835,7 @@ async function eliminarOC(id,oc){
     const d=await r.json();
     if(!r.ok){alert(d.error||'No se pudo eliminar');return;}
     cargarHistorial(document.getElementById('hist-search').value.trim());
+    cargarStats();
   }catch(e){alert('Error: '+e.message);}
 }
 async function eliminarTodasOC(){
@@ -831,6 +848,7 @@ async function eliminarTodasOC(){
     if(!r.ok){alert(d.error||'No se pudo eliminar');return;}
     alert('Órdenes eliminadas: '+(d.eliminados||0));
     cargarHistorial('');
+    cargarStats();
   }catch(e){alert('Error: '+e.message);}
 }
 
@@ -1045,6 +1063,7 @@ async function subir(file){
     if(!r.ok){alert(d.error);return;}
     const ped=d.pedido||DEMO; ped._id=d.pedido_id||null;
     cargar(ped);
+    cargarStats();
   }catch(e){alert('No se pudo contactar el backend: '+e.message);}
 }
 function cargar(p){pedido=p;pedido._v=validar(p);paso=1;
@@ -1116,6 +1135,7 @@ function checarRevision(d){
   }else b.classList.remove('show');
 }
 cargarAlertas();
+cargarStats();
 
 render();
 </script>
