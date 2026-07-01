@@ -411,6 +411,13 @@
   .rbar-row .val{width:40px;text-align:right;font-family:var(--mono);font-weight:600}
   @media(max-width:980px){.rep-grid{grid-template-columns:1fr 1fr}}
 
+  /* selector de cliente */
+  .cliente-sel{display:flex;gap:8px;margin-bottom:14px}
+  .cli-btn{padding:8px 16px;border:1px solid var(--line);border-radius:8px;font-size:13px;
+    font-weight:600;color:var(--steel);background:var(--paper)}
+  .cli-btn:hover{border-color:var(--steel-l)}
+  .cli-btn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+
   /* login */
   #login-overlay{display:none;position:fixed;inset:0;z-index:100;
     background:linear-gradient(180deg,var(--ink),var(--ink-2));
@@ -478,17 +485,36 @@
 <div class="wrap">
   <div class="col">
     <div class="card">
-      <h3>Cargar pedido<span class="meta">PDF de RetailLink</span></h3>
+      <h3>Cargar pedido<span class="meta" id="carga-meta">PDF de RetailLink</span></h3>
       <div class="pad">
+        <div class="cliente-sel" id="cliente-sel">
+          <button class="cli-btn active" data-cli="WMT">Walmart</button>
+          <button class="cli-btn" data-cli="HEB">HEB</button>
+        </div>
         <div class="drop" id="drop">
           <div class="up">↑</div>
-          <b>Arrastra el PDF del pedido</b>
+          <b id="drop-title">Arrastra el PDF del pedido</b>
           <small>o haz clic para seleccionarlo</small>
           <input type="file" id="file" accept="application/pdf" hidden>
         </div>
         <div class="demo-row">
           <button class="btn" style="width:auto;display:inline-flex" id="demo">
             <span class="step">▸</span>Cargar pedido de ejemplo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel de resultados HEB -->
+    <div class="card" id="card-heb" style="display:none">
+      <h3>Pedido HEB<span class="meta" id="heb-meta"></span></h3>
+      <div class="pad">
+        <div class="lblgrid"><div class="lblcard"><div class="lh"><span id="heb-lh">Etiqueta HEB</span></div>
+          <div class="lp" id="heb-preview"><small style="color:var(--steel-l)">generando…</small></div></div></div>
+        <div class="tbl-wrap" style="margin-top:14px"><table><thead><tr>
+          <th>SKU</th><th>Descripción</th><th class="r">Embalaje</th><th class="r">Cajas</th><th></th>
+        </tr></thead><tbody id="heb-tbody"></tbody></table></div>
+        <div class="lblsel-actions">
+          <button class="btn primary" id="heb-print-all">Imprimir todas las etiquetas HEB</button>
         </div>
       </div>
     </div>
@@ -678,6 +704,8 @@ const LABELARY = "https://api.labelary.com/v1/printers/8dpmm/labels/4x3.31/0/";
 const DEMO = {"cliente":"WALMART","encabezado":{"num_orden_compra":"8834970382","fecha_pedido":"2026-06-18","fecha_envio":"2026-06-18","fecha_cancelacion":"2026-06-25","tipo_orden":"0033","moneda":"MXN","departamento":"00014","evento_promocional":"POS REPLEN","condicion_pago":"NET 90 based on Receipt of Goods","num_proveedor_walmart":"826370140","nombre_proveedor":"FUTUREENTS TECH SA DE CV","formato_tienda":"BODEGA","cedis_nombre":"CD NAVE 1 SECOS 7494","cedis_destino":"7494","gln_destino":"7507003116675","instrucciones":"NO PRETICKET"},"lineas":[{"num_linea":"001","sku_walmart":"101581796","sku_interno":"SIC24G","gtin":"7500462718718","color":"GRIS","cantidad":168,"uom":"EA","piezas_por_caja":6,"cajas":28,"precio_unitario":120.45,"total_linea":20235.6},{"num_linea":"002","sku_walmart":"101581797","sku_interno":"SIC20G","gtin":"7500462718695","color":"GRIS","cantidad":108,"uom":"EA","piezas_por_caja":6,"cajas":18,"precio_unitario":98.2,"total_linea":10605.6},{"num_linea":"003","sku_walmart":"101581798","sku_interno":"SIC28G","gtin":"7500462718817","color":"GRIS","cantidad":102,"uom":"EA","piezas_por_caja":6,"cajas":17,"precio_unitario":146,"total_linea":14892},{"num_linea":"004","sku_walmart":"101581799","sku_interno":"CIC16G","gtin":"7500462719005","color":"GRIS","cantidad":36,"uom":"EA","piezas_por_caja":4,"cajas":9,"precio_unitario":147.15,"total_linea":5297.4},{"num_linea":"005","sku_walmart":"101581800","sku_interno":"OIC24G","gtin":"7500462719036","color":"GRIS","cantidad":80,"uom":"EA","piezas_por_caja":4,"cajas":20,"precio_unitario":232,"total_linea":18560},{"num_linea":"006","sku_walmart":"101581801","sku_interno":"BIC24G","gtin":"7500462719050","color":"GRIS","cantidad":72,"uom":"EA","piezas_por_caja":4,"cajas":18,"precio_unitario":205,"total_linea":14760}],"totales_pdf":{"total":84350.6,"total_lineas":6,"total_unidades":566},"control":{"suma_extendido_calculado":84350.6,"coincide_total":true,"suma_unidades_calculado":566,"coincide_unidades":true,"num_lineas_calculado":6,"coincide_num_lineas":true,"total_cajas_etiquetas":110}};
 
 let pedido = null, paso = 0;
+let CLIENTE = 'WMT';        // WMT | HEB
+let HEB = null;             // pedido HEB extraído {oc, lineas, etiquetas}
 let hist = [];   // historial reciente real (se llena desde el backend)
 let STATS = {procesados:0, errores:0, porCapturar:0};
 
@@ -1370,6 +1398,7 @@ function render(){kpis();flow();lines();invoice();validation();acts();history();
 
 async function subir(file){
   if(!API_BASE){alert('Modo demo: la extracción real ocurre en el backend.\nUsa "Cargar pedido de ejemplo" para ver el flujo completo.');return;}
+  if(CLIENTE==='HEB') return subirHEB(file);
   const fd=new FormData();fd.append('file',file);
   try{
     const r=await fetch(API_BASE+'/api/pedidos/upload',{method:'POST',body:fd});
@@ -1383,6 +1412,60 @@ async function subir(file){
 function cargar(p){pedido=p;pedido._v=validar(p);paso=1;
   $('#card-labels').style.display='none';render();}
 
+/* ===== HEB ===== */
+function setCliente(cli){
+  CLIENTE=cli;
+  document.querySelectorAll('#cliente-sel .cli-btn').forEach(b=>b.classList.toggle('active',b.dataset.cli===cli));
+  $('#carga-meta').textContent = cli==='HEB'?'PDF Orden de Compra HEB':'PDF de RetailLink';
+  $('#drop-title').textContent = cli==='HEB'?'Arrastra el PDF de HEB':'Arrastra el PDF del pedido';
+  $('#demo').style.display = cli==='HEB'?'none':'';
+  // ocultar tarjetas del otro cliente
+  ['flow','card-lines','card-invoice','card-labels'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
+  $('#card-heb').style.display='none';
+  if(cli==='WMT'&&pedido) render();
+}
+async function subirHEB(file){
+  const fd=new FormData();fd.append('file',file);
+  try{
+    const r=await fetch(API_BASE+'/api/heb/upload',{method:'POST',body:fd});
+    const d=await r.json();
+    if(!r.ok){alert(d.error||'No se pudo leer el PDF de HEB');return;}
+    HEB=d; renderHEB();
+  }catch(e){alert('No se pudo contactar el backend: '+e.message);}
+}
+function renderHEB(){
+  $('#card-heb').style.display='block';
+  $('#heb-meta').textContent=`OC ${HEB.oc} · ${HEB.resumen.productos} productos · ${HEB.resumen.etiquetas} etiquetas`;
+  $('#heb-tbody').innerHTML=HEB.lineas.map((l,i)=>`<tr>
+    <td class="sku">${l.sku}</td><td>${l.descripcion}</td>
+    <td class="r">${l.embalaje}</td><td class="r">${l.cajas}</td>
+    <td class="r"><button class="rowbtn heb-one" data-i="${i}">Imprimir ${l.cajas}</button></td></tr>`).join('');
+  $('#heb-tbody').querySelectorAll('.heb-one').forEach(b=>b.onclick=()=>imprimirHEB(+b.dataset.i));
+  // preview de la primera etiqueta vía Labelary
+  const et=HEB.etiquetas[0];
+  if(et){ fetch(LABELARY,{method:'POST',headers:{'Accept':'image/png','Content-Type':'application/x-www-form-urlencoded'},body:et.zpl})
+    .then(r=>r.ok?r.blob():Promise.reject()).then(b=>{$('#heb-preview').innerHTML=`<img src="${URL.createObjectURL(b)}">`;})
+    .catch(()=>{$('#heb-preview').innerHTML='<small style="color:var(--steel)">preview no disponible</small>';}); }
+}
+function imprimirHEB(idx){
+  // idx null/undefined = todas; si es número, solo las etiquetas de ese producto
+  let etiquetas;
+  if(idx==null){ etiquetas=HEB.etiquetas; }
+  else{ const sku=HEB.lineas[idx].sku; etiquetas=HEB.etiquetas.filter(e=>e.sku_interno===sku); }
+  if(!etiquetas.length) return;
+  document.getElementById('print-bg').classList.add('open');
+  document.getElementById('print-title').textContent='Imprimiendo etiquetas HEB';
+  document.getElementById('reprint-row').style.display='none';
+  const bar=document.getElementById('print-bar'),cnt=document.getElementById('print-count'),pct=document.getElementById('print-pct');
+  bar.style.width='0%';cnt.textContent=`0 de ${etiquetas.length}`;pct.textContent='0%';
+  fetch(API_BASE+'/api/imprimir',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({pedido_id:null,etiquetas,estacion:'zebra-01'})})
+    .then(r=>r.json()).then(d=>{
+      if(d.error){document.getElementById('print-title').textContent='Error';document.getElementById('print-sub').textContent=d.error;return;}
+      document.getElementById('print-sub').textContent=`OC ${HEB.oc} · ${etiquetas.length} etiquetas en cola. La estación las está imprimiendo…`;
+      seguirAvance(d.job_id,etiquetas.length);
+    }).catch(e=>{document.getElementById('print-title').textContent='Sin conexión';});
+}
 const drop=$('#drop');
 drop.onclick=()=>$('#file').click();
 $('#file').onchange=e=>e.target.files[0]&&subir(e.target.files[0]);
@@ -1450,6 +1533,9 @@ function checarRevision(d){
 }
 /* navegación por pestañas */
 document.querySelectorAll('#topnav .navlink').forEach(b=>b.onclick=()=>showView(b.dataset.view));
+/* selector de cliente + HEB */
+document.querySelectorAll('#cliente-sel .cli-btn').forEach(b=>b.onclick=()=>setCliente(b.dataset.cli));
+document.getElementById('heb-print-all').onclick=()=>imprimirHEB(null);
 
 /* login wiring */
 document.getElementById('login-btn').onclick=hacerLogin;

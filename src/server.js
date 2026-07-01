@@ -24,6 +24,7 @@ const { extractFromBuffer } = require("./lib/walmartExtractor");
 const { validarPedido } = require("./lib/validaciones");
 const { generarEtiquetasPedido } = require("./lib/zplEngine");
 const { generarArchivoSAE, CONFIG_WALMART } = require("./lib/saeExport");
+const { extraerHEB, generarEtiquetasHEB } = require("./lib/hebExtractor");
 const { AUTH_ENABLED, login, requireAuth } = require("./lib/auth");
 const db = require("./lib/db");
 
@@ -136,6 +137,31 @@ app.post("/api/pedidos/upload", requireAuth, upload.single("file"), async (req, 
         etiquetas_a_generar: pedido.control.total_cajas_etiquetas,
         control_extraccion: pedido.control,
       },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
+ * Sube el PDF de ORDEN DE COMPRA de HEB: extrae productos y genera las
+ * etiquetas de caja HEB (una por casepack). Devuelve todo para imprimir.
+ */
+app.post("/api/heb/upload", requireAuth, upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Falta el PDF de HEB" });
+    let pedido;
+    try { pedido = await extraerHEB(req.file.buffer); }
+    catch (e) { return res.status(422).json({ error: "No se pudo leer el PDF de HEB", detalle: e.message }); }
+    if (!pedido.encabezado.num_orden_compra)
+      return res.status(422).json({ error: "No se encontró la Orden de Compra en el PDF" });
+    const etiquetas = generarEtiquetasHEB(pedido);
+    res.json({
+      ok: true, cliente: "HEB",
+      oc: pedido.encabezado.num_orden_compra,
+      lineas: pedido.lineas,
+      resumen: { productos: pedido.totales.productos, etiquetas: pedido.totales.etiquetas, unidades: pedido.totales.unidades },
+      etiquetas,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
