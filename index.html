@@ -510,10 +510,37 @@
       <div class="pad">
         <div class="lblgrid"><div class="lblcard"><div class="lh"><span id="heb-lh">Etiqueta HEB</span></div>
           <div class="lp" id="heb-preview"><small style="color:var(--steel-l)">generando…</small></div></div></div>
-        <div class="tbl-wrap" style="margin-top:14px"><table><thead><tr>
-          <th>SKU</th><th>Descripción</th><th class="r">Embalaje</th><th class="r">Cajas</th><th></th>
+
+        <div class="cal-bar">
+          <div><b>Editor de la etiqueta HEB</b>
+          <span class="lblsel-hint">Ajusta letra, líneas y código; se aplica a TODAS las etiquetas HEB.</span></div>
+          <button class="btn" id="hcal-toggle">Ajustar</button>
+        </div>
+        <div class="cal-panel" id="hcal-panel">
+          <div class="cal-ctrls">
+            <div class="cal-ctrl"><label>Tamaño de letra: <span id="hc-fsv"></span></label><input type="range" id="hc-fs" min="18" max="40" step="1"></div>
+            <div class="cal-ctrl"><label>Separación de líneas: <span id="hc-lhv"></span></label><input type="range" id="hc-lh" min="34" max="70" step="1"></div>
+            <div class="cal-ctrl"><label>Inicio vertical: <span id="hc-y0v"></span></label><input type="range" id="hc-y0" min="10" max="120" step="1"></div>
+            <div class="cal-ctrl"><label>Margen del texto: <span id="hc-xlv"></span></label><input type="range" id="hc-xl" min="10" max="120" step="1"></div>
+            <div class="cal-ctrl"><label>Posición X del código: <span id="hc-bxv"></span></label><input type="range" id="hc-bx" min="40" max="500" step="2"></div>
+            <div class="cal-ctrl"><label>Posición Y del código: <span id="hc-byv"></span></label><input type="range" id="hc-by" min="380" max="560" step="2"></div>
+            <div class="cal-ctrl"><label>Altura del código: <span id="hc-bhv"></span></label><input type="range" id="hc-bh" min="60" max="160" step="2"></div>
+            <div class="cal-ctrl"><label>Grosor del código: <span id="hc-bwv"></span></label><input type="range" id="hc-bw" min="2" max="5" step="1"></div>
+          </div>
+          <div class="cal-actions">
+            <button class="btn" id="hcal-reset">Restaurar</button>
+            <button class="btn primary" id="hcal-save">Guardar y aplicar a todas</button>
+          </div>
+        </div>
+
+        <div class="lblsel-bar"><b>Etiquetas por producto</b>
+          <span class="lblsel-hint">Marca los productos y ajusta cuántas cajas reimprimir (por si una se rompió).</span></div>
+        <div class="tbl-wrap" style="margin-top:10px"><table class="ptable"><thead><tr>
+          <th><input type="checkbox" id="heb-all"></th><th>SKU</th><th>Descripción</th>
+          <th class="r">Embalaje</th><th class="r">Cajas</th><th class="r">Reimprimir</th>
         </tr></thead><tbody id="heb-tbody"></tbody></table></div>
         <div class="lblsel-actions">
+          <button class="btn" id="heb-print-sel">Imprimir seleccionadas (0)</button>
           <button class="btn primary" id="heb-print-all">Imprimir todas las etiquetas HEB</button>
         </div>
       </div>
@@ -1413,13 +1440,44 @@ function cargar(p){pedido=p;pedido._v=validar(p);paso=1;
   $('#card-labels').style.display='none';render();}
 
 /* ===== HEB ===== */
+const HEB_LAYOUT_DEF={FS:30,LH:48,Y0:45,XL:30,BX:210,BY:470,BH:120,BW:3};
+let HEB_LAYOUT=Object.assign({},HEB_LAYOUT_DEF,(()=>{try{return JSON.parse(localStorage.getItem('hlayout')||'{}')}catch(e){return{}}})());
+
+/* ZPL de una etiqueta HEB generado en el cliente (para que el editor lo afecte) */
+function zplHEBlocal(oc,embalaje,descripcion,sku,gtin){
+  const A=812,L=671,FS=HEB_LAYOUT.FS,LH=HEB_LAYOUT.LH,Y0=HEB_LAYOUT.Y0,XL=HEB_LAYOUT.XL,
+        BX=HEB_LAYOUT.BX,BY=HEB_LAYOUT.BY,BH=HEB_LAYOUT.BH,BW=HEB_LAYOUT.BW;
+  const ean=String(gtin).replace(/\D/g,'');
+  let d1=descripcion,d2='';
+  if(descripcion.length>34){const cut=descripcion.lastIndexOf(' ',34);d1=descripcion.slice(0,cut>0?cut:34);d2=descripcion.slice((cut>0?cut:34)+1);}
+  let y=Y0;const line=(t)=>{const s=`^FO${XL},${y}^A0N,${FS},${FS}^FD${t}^FS\n`;y+=LH;return s;};
+  let z=`^XA\n^CI28\n^PW${A}\n^LL${L}\n^LH0,0\n`;
+  z+=line('PROVEEDOR: FUTUREENTS TECH SA DE CV');
+  z+=line('NUMERO DE PROVEEDOR: 13217');
+  z+=line('ORDEN DE COMPRA: '+(oc||''));
+  z+=line('EMBALAJE: '+embalaje+' PIEZAS');
+  z+=line('DESCRIPCION: '+d1);
+  if(d2)z+=line(d2);
+  z+=line('SKU: '+sku);
+  z+=`^FO${BX},${BY}^BY${BW}^BEN,${BH},Y,N^FD${ean}^FS\n^XZ`;
+  return z;
+}
+/* etiquetas según items [{idx,cant}] (o todas si null), con el layout actual */
+function construirEtiquetasHEB(items){
+  const lista=items||HEB.lineas.map((l,i)=>({idx:i,cant:l.cajas}));
+  const out=[];
+  lista.forEach(({idx,cant})=>{
+    const l=HEB.lineas[idx]; const z=zplHEBlocal(HEB.oc,l.embalaje,l.descripcion,l.sku,l.gtin);
+    for(let c=0;c<cant;c++) out.push({zpl:z,sku_interno:l.sku});
+  });
+  return out;
+}
 function setCliente(cli){
   CLIENTE=cli;
   document.querySelectorAll('#cliente-sel .cli-btn').forEach(b=>b.classList.toggle('active',b.dataset.cli===cli));
   $('#carga-meta').textContent = cli==='HEB'?'PDF Orden de Compra HEB':'PDF de RetailLink';
   $('#drop-title').textContent = cli==='HEB'?'Arrastra el PDF de HEB':'Arrastra el PDF del pedido';
   $('#demo').style.display = cli==='HEB'?'none':'';
-  // ocultar tarjetas del otro cliente
   ['flow','card-lines','card-invoice','card-labels'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
   $('#card-heb').style.display='none';
   if(cli==='WMT'&&pedido) render();
@@ -1437,22 +1495,27 @@ function renderHEB(){
   $('#card-heb').style.display='block';
   $('#heb-meta').textContent=`OC ${HEB.oc} · ${HEB.resumen.productos} productos · ${HEB.resumen.etiquetas} etiquetas`;
   $('#heb-tbody').innerHTML=HEB.lineas.map((l,i)=>`<tr>
+    <td><input type="checkbox" class="heb-chk" data-i="${i}"></td>
     <td class="sku">${l.sku}</td><td>${l.descripcion}</td>
     <td class="r">${l.embalaje}</td><td class="r">${l.cajas}</td>
-    <td class="r"><button class="rowbtn heb-one" data-i="${i}">Imprimir ${l.cajas}</button></td></tr>`).join('');
-  $('#heb-tbody').querySelectorAll('.heb-one').forEach(b=>b.onclick=()=>imprimirHEB(+b.dataset.i));
-  // preview de la primera etiqueta vía Labelary
-  const et=HEB.etiquetas[0];
-  if(et){ fetch(LABELARY,{method:'POST',headers:{'Accept':'image/png','Content-Type':'application/x-www-form-urlencoded'},body:et.zpl})
-    .then(r=>r.ok?r.blob():Promise.reject()).then(b=>{$('#heb-preview').innerHTML=`<img src="${URL.createObjectURL(b)}">`;})
-    .catch(()=>{$('#heb-preview').innerHTML='<small style="color:var(--steel)">preview no disponible</small>';}); }
+    <td class="r"><input type="number" class="heb-qty" data-i="${i}" min="0" max="${l.cajas}" value="${l.cajas}" style="width:62px;text-align:right;padding:5px 6px;border:1px solid var(--line);border-radius:6px"></td></tr>`).join('');
+  $('#heb-tbody').querySelectorAll('.heb-chk').forEach(c=>c.onchange=hebSelCount);
+  const all=$('#heb-all'); if(all) all.onchange=()=>{document.querySelectorAll('#heb-tbody .heb-chk').forEach(c=>c.checked=all.checked);hebSelCount();};
+  hebSelCount(); hebPreview();
 }
-function imprimirHEB(idx){
-  // idx null/undefined = todas; si es número, solo las etiquetas de ese producto
-  let etiquetas;
-  if(idx==null){ etiquetas=HEB.etiquetas; }
-  else{ const sku=HEB.lineas[idx].sku; etiquetas=HEB.etiquetas.filter(e=>e.sku_interno===sku); }
-  if(!etiquetas.length) return;
+function hebSelCount(){
+  const n=[...document.querySelectorAll('#heb-tbody .heb-chk:checked')].length;
+  const b=$('#heb-print-sel'); if(b) b.textContent=`Imprimir seleccionadas (${n})`;
+}
+function hebPreview(){
+  if(!HEB||!HEB.lineas.length)return;
+  const l=HEB.lineas[0]; const z=zplHEBlocal(HEB.oc,l.embalaje,l.descripcion,l.sku,l.gtin);
+  fetch(LABELARY,{method:'POST',headers:{'Accept':'image/png','Content-Type':'application/x-www-form-urlencoded'},body:z})
+    .then(r=>r.ok?r.blob():Promise.reject()).then(b=>{$('#heb-preview').innerHTML=`<img src="${URL.createObjectURL(b)}">`;})
+    .catch(()=>{$('#heb-preview').innerHTML='<small style="color:var(--steel)">preview no disponible</small>';});
+}
+function imprimirHEBlista(etiquetas){
+  if(!etiquetas.length){alert('No hay etiquetas para imprimir.');return;}
   document.getElementById('print-bg').classList.add('open');
   document.getElementById('print-title').textContent='Imprimiendo etiquetas HEB';
   document.getElementById('reprint-row').style.display='none';
@@ -1465,6 +1528,41 @@ function imprimirHEB(idx){
       document.getElementById('print-sub').textContent=`OC ${HEB.oc} · ${etiquetas.length} etiquetas en cola. La estación las está imprimiendo…`;
       seguirAvance(d.job_id,etiquetas.length);
     }).catch(e=>{document.getElementById('print-title').textContent='Sin conexión';});
+}
+function imprimirHEBtodas(){ imprimirHEBlista(construirEtiquetasHEB(null)); }
+function imprimirHEBseleccion(){
+  const items=[...document.querySelectorAll('#heb-tbody .heb-chk:checked')].map(c=>{
+    const i=+c.dataset.i; const q=parseInt(document.querySelector(`.heb-qty[data-i="${i}"]`).value,10)||0;
+    return {idx:i,cant:q};
+  }).filter(x=>x.cant>0);
+  if(!items.length){alert('Marca al menos un producto (con cantidad mayor a 0).');return;}
+  imprimirHEBlista(construirEtiquetasHEB(items));
+}
+/* ===== Editor (calibrador) de la etiqueta HEB ===== */
+let hcalTmp=null,hcalTimer=null;
+function abrirHcal(){
+  const p=document.getElementById('hcal-panel'); p.classList.toggle('open');
+  if(!p.classList.contains('open'))return;
+  hcalTmp=Object.assign({},HEB_LAYOUT);
+  [['fs','FS'],['lh','LH'],['y0','Y0'],['xl','XL'],['bx','BX'],['by','BY'],['bh','BH'],['bw','BW']]
+    .forEach(([id,k])=>{document.getElementById('hc-'+id).value=hcalTmp[k];});
+  sincHcal(); renderHcalPreview();
+}
+function sincHcal(){
+  [['fs','FS'],['lh','LH'],['y0','Y0'],['xl','XL'],['bx','BX'],['by','BY'],['bh','BH'],['bw','BW']]
+    .forEach(([id,k])=>{document.getElementById('hc-'+id+'v').textContent=hcalTmp[k];});
+}
+function renderHcalPreview(){
+  clearTimeout(hcalTimer);
+  hcalTimer=setTimeout(()=>{
+    const l=(HEB&&HEB.lineas[0])||{embalaje:12,descripcion:'SARTEN 24CM IMPERIAL CERAMICA GRIS',sku:'998450',gtin:'7500462718718'};
+    const oc=(HEB&&HEB.oc)||'251292849';
+    const saved=HEB_LAYOUT; HEB_LAYOUT=hcalTmp;
+    const z=zplHEBlocal(oc,l.embalaje,l.descripcion,l.sku,l.gtin);
+    HEB_LAYOUT=saved;
+    fetch(LABELARY,{method:'POST',headers:{'Accept':'image/png','Content-Type':'application/x-www-form-urlencoded'},body:z})
+      .then(r=>r.ok?r.blob():Promise.reject()).then(b=>{$('#heb-preview').innerHTML=`<img src="${URL.createObjectURL(b)}">`;}).catch(()=>{});
+  },220);
 }
 const drop=$('#drop');
 drop.onclick=()=>$('#file').click();
@@ -1535,7 +1633,25 @@ function checarRevision(d){
 document.querySelectorAll('#topnav .navlink').forEach(b=>b.onclick=()=>showView(b.dataset.view));
 /* selector de cliente + HEB */
 document.querySelectorAll('#cliente-sel .cli-btn').forEach(b=>b.onclick=()=>setCliente(b.dataset.cli));
-document.getElementById('heb-print-all').onclick=()=>imprimirHEB(null);
+document.getElementById('heb-print-all').onclick=imprimirHEBtodas;
+document.getElementById('heb-print-sel').onclick=imprimirHEBseleccion;
+/* editor HEB */
+document.getElementById('hcal-toggle').onclick=abrirHcal;
+[['hc-fs','FS'],['hc-lh','LH'],['hc-y0','Y0'],['hc-xl','XL'],['hc-bx','BX'],['hc-by','BY'],['hc-bh','BH'],['hc-bw','BW']]
+  .forEach(([id,k])=>{document.getElementById(id).oninput=(e)=>{hcalTmp[k]=+e.target.value;sincHcal();renderHcalPreview();};});
+document.getElementById('hcal-reset').onclick=()=>{
+  hcalTmp=Object.assign({},HEB_LAYOUT_DEF);
+  [['fs','FS'],['lh','LH'],['y0','Y0'],['xl','XL'],['bx','BX'],['by','BY'],['bh','BH'],['bw','BW']]
+    .forEach(([id,k])=>{document.getElementById('hc-'+id).value=hcalTmp[k];});
+  sincHcal();renderHcalPreview();
+};
+document.getElementById('hcal-save').onclick=()=>{
+  HEB_LAYOUT=Object.assign({},hcalTmp);
+  try{localStorage.setItem('hlayout',JSON.stringify(HEB_LAYOUT));}catch(e){}
+  document.getElementById('hcal-panel').classList.remove('open');
+  hebPreview();
+  alert('Ajuste guardado. Se aplicará a todas las etiquetas HEB (preview e impresión).');
+};
 
 /* login wiring */
 document.getElementById('login-btn').onclick=hacerLogin;
