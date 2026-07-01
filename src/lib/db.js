@@ -339,6 +339,50 @@ async function estadoTrabajoImpresion(jobId) {
   return data;
 }
 
+/** Plantilla ZPL de la etiqueta de caja de HEB (texto + 1 código EAN13).
+ *  Marcadores {{oc}} {{embalaje}} {{descripcion}} {{sku}} {{gtin}}. */
+const HEB_ZPL =
+`^XA
+^CI28
+^PW812^LL671^LH0,0
+^FO30,45^A0N,30,30^FDPROVEEDOR: FUTUREENTS TECH SA DE CV^FS
+^FO30,93^A0N,30,30^FDNUMERO DE PROVEEDOR: 13217^FS
+^FO30,141^A0N,30,30^FDORDEN DE COMPRA: {{oc}}^FS
+^FO30,189^A0N,30,30^FDEMBALAJE: {{embalaje}} PIEZAS^FS
+^FO30,237^A0N,30,30^FDDESCRIPCION: {{descripcion}}^FS
+^FO30,285^A0N,30,30^FDSKU: {{sku}}^FS
+^FO210,470^BY3^BEN,120,Y,N^FD{{gtin}}^FS
+^XZ`;
+
+/** Da de alta el cliente HEB y su plantilla de etiqueta (idempotente). */
+async function seedHEB() {
+  if (!supabase) return;
+  try {
+    let { data: cli } = await supabase.from("clientes").select("id")
+      .eq("codigo_interno", "HEB").maybeSingle();
+    let clienteId = cli && cli.id;
+    if (!clienteId) {
+      const { data } = await supabase.from("clientes").insert({
+        nombre: "HEB", codigo_interno: "HEB", metodo_extraccion: "archivo",
+        num_proveedor: "13217", activo: true,
+      }).select("id").single();
+      clienteId = data.id;
+      console.log("[seed] cliente HEB dado de alta:", clienteId);
+    }
+    const { data: tpl } = await supabase.from("plantillas_zpl").select("id")
+      .eq("cliente_id", clienteId).eq("nombre", "HEB caja").maybeSingle();
+    if (!tpl) {
+      await supabase.from("plantillas_zpl").insert({
+        cliente_id: clienteId, nombre: "HEB caja", zpl_template: HEB_ZPL,
+        ancho_mm: 101.6, alto_mm: 84, activa: true,
+      });
+      console.log("[seed] plantilla de etiqueta HEB dada de alta");
+    }
+  } catch (e) {
+    console.log("[seed] HEB:", e.message);
+  }
+}
+
 /** Reconstruye un pedido completo (encabezado + líneas) para reabrirlo en el
  *  dashboard, con la misma forma que produce el extractor. */
 async function obtenerPedidoCompleto(id) {
@@ -418,6 +462,7 @@ module.exports = {
   marcarRevisionManual,
   encolarImpresion,
   obtenerPedidoCompleto,
+  seedHEB,
   tomarTrabajoImpresion,
   reportarImpresion,
   estadoTrabajoImpresion,

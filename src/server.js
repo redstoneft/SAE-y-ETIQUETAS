@@ -384,6 +384,7 @@ if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`Backend escuchando en http://localhost:${PORT}`);
     console.log(`Modo: ${db.HAS_CREDS ? "Supabase" : "DRY (sin BD, solo prueba)"}`);
+    db.seedHEB();   // da de alta cliente HEB + plantilla de etiqueta (idempotente)
   });
 }
 
