@@ -447,10 +447,27 @@ async function registrarArticulos(clienteCodigo, lineas) {
   return { productos: prods.length, mapeos: maps.length };
 }
 
-/** Da de alta HEB y Alsuper (cliente + plantilla). */
+/** Plantilla ZPL de la etiqueta de caja de CASA LEY (texto + UPC EAN13 + DUN-14). */
+const CASALEY_ZPL =
+`^XA
+^CI28
+^PW812^LL671^LH0,0
+^FO30,34^A0N,27,27^FDPROVEEDOR: FUTUREENTS TECH SA DE CV^FS
+^FO30,74^A0N,27,27^FDNUMERO DE PROVEEDOR SAP: 1018566^FS
+^FO30,114^A0N,27,27^FDORDEN DE COMPRA: {{oc}}^FS
+^FO30,154^A0N,27,27^FDEMBALAJE: {{embalaje}} PIEZAS^FS
+^FO30,194^A0N,27,27^FDDESCRIPCION: {{descripcion}}^FS
+^FO30,274^A0N,27,27^FDSKU: {{sku}}^FS
+^FO250,320^BY2^BEN,70,Y,N^FD{{gtin}}^FS
+^FO120,450^BY2^B2N,70,N,N,N^FD{{dun14}}^FS
+^FO120,532^A0N,24,24^FDDUN 14  {{dun14}}^FS
+^XZ`;
+
+/** Da de alta HEB, Alsuper y Casa Ley (cliente + plantilla). */
 async function seedHEB() {
   await darDeAltaCliente({ codigo: "HEB", nombre: "HEB", numProv: "13217", nombreTpl: "HEB caja", zpl: HEB_ZPL });
   await darDeAltaCliente({ codigo: "ALSUPER", nombre: "Alsuper", numProv: "207850", nombreTpl: "Alsuper caja", zpl: ALSUPER_ZPL });
+  await darDeAltaCliente({ codigo: "CASALEY", nombre: "Casa Ley", numProv: "1018566", nombreTpl: "Casa Ley caja", zpl: CASALEY_ZPL });
 }
 
 /** Reconstruye un pedido completo (encabezado + líneas) para reabrirlo en el

@@ -26,6 +26,7 @@ const { generarEtiquetasPedido } = require("./lib/zplEngine");
 const { generarArchivoSAE, CONFIG_WALMART } = require("./lib/saeExport");
 const { extraerHEB, generarEtiquetasHEB } = require("./lib/hebExtractor");
 const { extraerAlsuper, generarEtiquetasAlsuper } = require("./lib/alsuperExtractor");
+const { extraerCasaLey, generarEtiquetasCasaLey } = require("./lib/casaleyExtractor");
 const { AUTH_ENABLED, login, requireAuth } = require("./lib/auth");
 const db = require("./lib/db");
 
@@ -163,6 +164,28 @@ app.post("/api/heb/upload", requireAuth, upload.single("file"), async (req, res)
       oc: pedido.encabezado.num_orden_compra,
       lineas: pedido.lineas,
       resumen: { productos: pedido.totales.productos, etiquetas: pedido.totales.etiquetas, unidades: pedido.totales.unidades },
+      etiquetas,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/** Sube el PDF de Orden de Compra de Casa Ley: extrae y genera etiquetas. */
+app.post("/api/casaley/upload", requireAuth, upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Falta el PDF de Casa Ley" });
+    let pedido;
+    try { pedido = await extraerCasaLey(req.file.buffer); }
+    catch (e) { return res.status(422).json({ error: "No se pudo leer el PDF de Casa Ley", detalle: e.message }); }
+    if (!pedido.lineas.length) return res.status(422).json({ error: "No se encontraron productos en el PDF" });
+    try { await db.registrarArticulos("CASALEY", pedido.lineas.map((l) => ({ articulo: l.modelo, cod_proveedor: l.modelo, gtin: l.gtin, descripcion: l.descripcion }))); } catch (e) { /* no bloquea */ }
+    const etiquetas = generarEtiquetasCasaLey(pedido);
+    res.json({
+      ok: true, cliente: "CASALEY",
+      oc: pedido.encabezado.num_orden_compra,
+      lineas: pedido.lineas,
+      resumen: pedido.totales,
       etiquetas,
     });
   } catch (e) {
