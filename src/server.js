@@ -25,6 +25,7 @@ const { validarPedido } = require("./lib/validaciones");
 const { generarEtiquetasPedido } = require("./lib/zplEngine");
 const { generarArchivoSAE, CONFIG_WALMART } = require("./lib/saeExport");
 const { extraerHEB, generarEtiquetasHEB } = require("./lib/hebExtractor");
+const { extraerAlsuper, generarEtiquetasAlsuper } = require("./lib/alsuperExtractor");
 const { AUTH_ENABLED, login, requireAuth } = require("./lib/auth");
 const db = require("./lib/db");
 
@@ -161,6 +162,27 @@ app.post("/api/heb/upload", requireAuth, upload.single("file"), async (req, res)
       oc: pedido.encabezado.num_orden_compra,
       lineas: pedido.lineas,
       resumen: { productos: pedido.totales.productos, etiquetas: pedido.totales.etiquetas, unidades: pedido.totales.unidades },
+      etiquetas,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/** Sube el PDF de Orden de Compra de Alsuper: extrae y genera etiquetas. */
+app.post("/api/alsuper/upload", requireAuth, upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Falta el PDF de Alsuper" });
+    let pedido;
+    try { pedido = await extraerAlsuper(req.file.buffer); }
+    catch (e) { return res.status(422).json({ error: "No se pudo leer el PDF de Alsuper", detalle: e.message }); }
+    if (!pedido.lineas.length) return res.status(422).json({ error: "No se encontraron productos en el PDF" });
+    const etiquetas = generarEtiquetasAlsuper(pedido);
+    res.json({
+      ok: true, cliente: "ALSUPER",
+      oc: pedido.encabezado.num_orden_compra,
+      lineas: pedido.lineas,
+      resumen: pedido.totales,
       etiquetas,
     });
   } catch (e) {

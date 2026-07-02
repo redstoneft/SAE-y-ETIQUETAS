@@ -370,33 +370,51 @@ const HEB_ZPL =
 ^FO210,470^BY3^BEN,120,Y,N^FD{{gtin}}^FS
 ^XZ`;
 
-/** Da de alta el cliente HEB y su plantilla de etiqueta (idempotente). */
-async function seedHEB() {
+/** Plantilla ZPL de la etiqueta de caja de ALSUPER (texto + EAN13).
+ *  Marcadores {{embalaje}} {{descripcion}} {{gtin}}. */
+const ALSUPER_ZPL =
+`^XA
+^CI28
+^PW812^LL671^LH0,0
+^FO30,70^A0N,32,32^FDPROVEEDOR: FUTUREENTS TECH SA DE CV^FS
+^FO30,124^A0N,32,32^FDEMBALAJE: {{embalaje}} PIEZAS^FS
+^FO30,178^A0N,32,32^FDDESCRIPCION: {{descripcion}}^FS
+^FO150,430^BY3^BEN,130,Y,N^FD{{gtin}}^FS
+^XZ`;
+
+/** Da de alta un cliente + su plantilla de etiqueta (idempotente). */
+async function darDeAltaCliente({ codigo, nombre, numProv, nombreTpl, zpl }) {
   if (!supabase) return;
   try {
     let { data: cli } = await supabase.from("clientes").select("id")
-      .eq("codigo_interno", "HEB").maybeSingle();
+      .eq("codigo_interno", codigo).maybeSingle();
     let clienteId = cli && cli.id;
     if (!clienteId) {
       const { data } = await supabase.from("clientes").insert({
-        nombre: "HEB", codigo_interno: "HEB", metodo_extraccion: "archivo",
-        num_proveedor: "13217", activo: true,
+        nombre, codigo_interno: codigo, metodo_extraccion: "archivo",
+        num_proveedor: numProv || null, activo: true,
       }).select("id").single();
       clienteId = data.id;
-      console.log("[seed] cliente HEB dado de alta:", clienteId);
+      console.log(`[seed] cliente ${codigo} dado de alta:`, clienteId);
     }
     const { data: tpl } = await supabase.from("plantillas_zpl").select("id")
-      .eq("cliente_id", clienteId).eq("nombre", "HEB caja").maybeSingle();
+      .eq("cliente_id", clienteId).eq("nombre", nombreTpl).maybeSingle();
     if (!tpl) {
       await supabase.from("plantillas_zpl").insert({
-        cliente_id: clienteId, nombre: "HEB caja", zpl_template: HEB_ZPL,
+        cliente_id: clienteId, nombre: nombreTpl, zpl_template: zpl,
         ancho_mm: 101.6, alto_mm: 84, activa: true,
       });
-      console.log("[seed] plantilla de etiqueta HEB dada de alta");
+      console.log(`[seed] plantilla ${nombreTpl} dada de alta`);
     }
   } catch (e) {
-    console.log("[seed] HEB:", e.message);
+    console.log(`[seed] ${codigo}:`, e.message);
   }
+}
+
+/** Da de alta HEB y Alsuper (cliente + plantilla). */
+async function seedHEB() {
+  await darDeAltaCliente({ codigo: "HEB", nombre: "HEB", numProv: "13217", nombreTpl: "HEB caja", zpl: HEB_ZPL });
+  await darDeAltaCliente({ codigo: "ALSUPER", nombre: "Alsuper", numProv: "207850", nombreTpl: "Alsuper caja", zpl: ALSUPER_ZPL });
 }
 
 /** Reconstruye un pedido completo (encabezado + líneas) para reabrirlo en el

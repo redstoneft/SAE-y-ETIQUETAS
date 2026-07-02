@@ -490,6 +490,7 @@
         <div class="cliente-sel" id="cliente-sel">
           <button class="cli-btn active" data-cli="WMT">Walmart</button>
           <button class="cli-btn" data-cli="HEB">HEB</button>
+          <button class="cli-btn" data-cli="ALSUPER">Alsuper</button>
         </div>
         <div class="drop" id="drop">
           <div class="up">↑</div>
@@ -506,14 +507,14 @@
 
     <!-- Panel de resultados HEB -->
     <div class="card" id="card-heb" style="display:none">
-      <h3>Pedido HEB<span class="meta" id="heb-meta"></span></h3>
+      <h3><span id="heb-title">Pedido HEB</span><span class="meta" id="heb-meta"></span></h3>
       <div class="pad">
-        <div class="lblgrid"><div class="lblcard"><div class="lh"><span id="heb-lh">Etiqueta HEB</span></div>
+        <div class="lblgrid"><div class="lblcard"><div class="lh"><span id="heb-lh">Etiqueta</span></div>
           <div class="lp" id="heb-preview"><small style="color:var(--steel-l)">generando…</small></div></div></div>
 
         <div class="cal-bar">
-          <div><b>Editor de la etiqueta HEB</b>
-          <span class="lblsel-hint">Ajusta letra, líneas y código; se aplica a TODAS las etiquetas HEB.</span></div>
+          <div><b>Editor de la etiqueta</b>
+          <span class="lblsel-hint">Ajusta letra, líneas y código; se aplica a TODAS las etiquetas de este cliente.</span></div>
           <button class="btn" id="hcal-toggle">Ajustar</button>
         </div>
         <div class="cal-panel" id="hcal-panel">
@@ -541,7 +542,7 @@
         </tr></thead><tbody id="heb-tbody"></tbody></table></div>
         <div class="lblsel-actions">
           <button class="btn" id="heb-print-sel">Imprimir seleccionadas (0)</button>
-          <button class="btn primary" id="heb-print-all">Imprimir todas las etiquetas HEB</button>
+          <button class="btn primary" id="heb-print-all">Imprimir todas las etiquetas</button>
         </div>
       </div>
     </div>
@@ -1440,7 +1441,7 @@ function render(){kpis();flow();lines();invoice();validation();acts();history();
 
 async function subir(file){
   if(!API_BASE){alert('Modo demo: la extracción real ocurre en el backend.\nUsa "Cargar pedido de ejemplo" para ver el flujo completo.');return;}
-  if(CLIENTE==='HEB') return subirHEB(file);
+  if(CLIENTE!=='WMT') return subirHEB(file);
   const fd=new FormData();fd.append('file',file);
   try{
     const r=await fetch(API_BASE+'/api/pedidos/upload',{method:'POST',body:fd});
@@ -1466,14 +1467,17 @@ function zplHEBlocal(oc,embalaje,descripcion,sku,gtin){
   let d1=descripcion,d2='';
   if(descripcion.length>34){const cut=descripcion.lastIndexOf(' ',34);d1=descripcion.slice(0,cut>0?cut:34);d2=descripcion.slice((cut>0?cut:34)+1);}
   let y=Y0;const line=(t)=>{const s=`^FO${XL},${y}^A0N,${FS},${FS}^FD${t}^FS\n`;y+=LH;return s;};
+  const esAlsuper=HEB&&HEB.cliente==='ALSUPER';
   let z=`^XA\n^CI28\n^PW${A}\n^LL${L}\n^LH0,0\n`;
   z+=line('PROVEEDOR: FUTUREENTS TECH SA DE CV');
-  z+=line('NUMERO DE PROVEEDOR: 13217');
-  z+=line('ORDEN DE COMPRA: '+(oc||''));
+  if(!esAlsuper){
+    z+=line('NUMERO DE PROVEEDOR: 13217');
+    z+=line('ORDEN DE COMPRA: '+(oc||''));
+  }
   z+=line('EMBALAJE: '+embalaje+' PIEZAS');
   z+=line('DESCRIPCION: '+d1);
   if(d2)z+=line(d2);
-  z+=line('SKU: '+sku);
+  if(!esAlsuper) z+=line('SKU: '+sku);
   z+=`^FO${BX},${BY}^BY${BW}^BEN,${BH},Y,N^FD${ean}^FS\n^XZ`;
   return z;
 }
@@ -1482,36 +1486,40 @@ function construirEtiquetasHEB(items){
   const lista=items||HEB.lineas.map((l,i)=>({idx:i,cant:l.cajas}));
   const out=[];
   lista.forEach(({idx,cant})=>{
-    const l=HEB.lineas[idx]; const z=zplHEBlocal(HEB.oc,l.embalaje,l.descripcion,l.sku,l.gtin);
-    for(let c=0;c<cant;c++) out.push({zpl:z,sku_interno:l.sku});
+    const l=HEB.lineas[idx]; const z=zplHEBlocal(HEB.oc,l.embalaje,l.descripcion,l.sku||l.articulo,l.gtin);
+    for(let c=0;c<cant;c++) out.push({zpl:z,sku_interno:l.sku||l.articulo});
   });
   return out;
 }
 function setCliente(cli){
   CLIENTE=cli;
+  const nombre={HEB:'HEB',ALSUPER:'Alsuper'}[cli]||'';
   document.querySelectorAll('#cliente-sel .cli-btn').forEach(b=>b.classList.toggle('active',b.dataset.cli===cli));
-  $('#carga-meta').textContent = cli==='HEB'?'PDF Orden de Compra HEB':'PDF de RetailLink';
-  $('#drop-title').textContent = cli==='HEB'?'Arrastra el PDF de HEB':'Arrastra el PDF del pedido';
-  $('#demo').style.display = cli==='HEB'?'none':'';
+  const esArchivo = cli!=='WMT';
+  $('#carga-meta').textContent = esArchivo?('PDF Orden de Compra '+nombre):'PDF de RetailLink';
+  $('#drop-title').textContent = esArchivo?('Arrastra el PDF de '+nombre):'Arrastra el PDF del pedido';
+  $('#demo').style.display = esArchivo?'none':'';
   ['flow','card-lines','card-invoice','card-labels'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
   $('#card-heb').style.display='none';
   if(cli==='WMT'&&pedido) render();
 }
 async function subirHEB(file){
+  const ep = CLIENTE==='ALSUPER' ? '/api/alsuper/upload' : '/api/heb/upload';
   const fd=new FormData();fd.append('file',file);
   try{
-    const r=await fetch(API_BASE+'/api/heb/upload',{method:'POST',body:fd});
+    const r=await fetch(API_BASE+ep,{method:'POST',body:fd});
     const d=await r.json();
-    if(!r.ok){alert(d.error||'No se pudo leer el PDF de HEB');return;}
+    if(!r.ok){alert(d.error||'No se pudo leer el PDF');return;}
     HEB=d; renderHEB();
   }catch(e){alert('No se pudo contactar el backend: '+e.message);}
 }
 function renderHEB(){
   $('#card-heb').style.display='block';
-  $('#heb-meta').textContent=`OC ${HEB.oc} · ${HEB.resumen.productos} productos · ${HEB.resumen.etiquetas} etiquetas`;
+  $('#heb-title').textContent = 'Pedido '+(HEB.cliente==='ALSUPER'?'Alsuper':'HEB');
+  $('#heb-meta').textContent=`${HEB.oc?('OC '+HEB.oc+' · '):''}${HEB.resumen.productos} productos · ${HEB.resumen.etiquetas} etiquetas`;
   $('#heb-tbody').innerHTML=HEB.lineas.map((l,i)=>`<tr>
     <td><input type="checkbox" class="heb-chk" data-i="${i}"></td>
-    <td class="sku">${l.sku}</td><td>${l.descripcion}</td>
+    <td class="sku">${l.sku||l.articulo}</td><td>${l.descripcion}</td>
     <td class="r">${l.embalaje}</td><td class="r">${l.cajas}</td>
     <td class="r"><input type="number" class="heb-qty" data-i="${i}" min="0" max="${l.cajas}" value="${l.cajas}" style="width:62px;text-align:right;padding:5px 6px;border:1px solid var(--line);border-radius:6px"></td></tr>`).join('');
   $('#heb-tbody').querySelectorAll('.heb-chk').forEach(c=>c.onchange=hebSelCount);
@@ -1524,7 +1532,7 @@ function hebSelCount(){
 }
 function hebPreview(){
   if(!HEB||!HEB.lineas.length)return;
-  const l=HEB.lineas[0]; const z=zplHEBlocal(HEB.oc,l.embalaje,l.descripcion,l.sku,l.gtin);
+  const l=HEB.lineas[0]; const z=zplHEBlocal(HEB.oc,l.embalaje,l.descripcion,l.sku||l.articulo,l.gtin);
   fetch(LABELARY,{method:'POST',headers:{'Accept':'image/png','Content-Type':'application/x-www-form-urlencoded'},body:z})
     .then(r=>r.ok?r.blob():Promise.reject()).then(b=>{$('#heb-preview').innerHTML=`<img src="${URL.createObjectURL(b)}">`;})
     .catch(()=>{$('#heb-preview').innerHTML='<small style="color:var(--steel)">preview no disponible</small>';});
@@ -1532,7 +1540,7 @@ function hebPreview(){
 function imprimirHEBlista(etiquetas){
   if(!etiquetas.length){alert('No hay etiquetas para imprimir.');return;}
   document.getElementById('print-bg').classList.add('open');
-  document.getElementById('print-title').textContent='Imprimiendo etiquetas HEB';
+  document.getElementById('print-title').textContent='Imprimiendo etiquetas';
   document.getElementById('reprint-row').style.display='none';
   const bar=document.getElementById('print-bar'),cnt=document.getElementById('print-count'),pct=document.getElementById('print-pct');
   bar.style.width='0%';cnt.textContent=`0 de ${etiquetas.length}`;pct.textContent='0%';
@@ -1573,7 +1581,7 @@ function renderHcalPreview(){
     const l=(HEB&&HEB.lineas[0])||{embalaje:12,descripcion:'SARTEN 24CM IMPERIAL CERAMICA GRIS',sku:'998450',gtin:'7500462718718'};
     const oc=(HEB&&HEB.oc)||'251292849';
     const saved=HEB_LAYOUT; HEB_LAYOUT=hcalTmp;
-    const z=zplHEBlocal(oc,l.embalaje,l.descripcion,l.sku,l.gtin);
+    const z=zplHEBlocal(oc,l.embalaje,l.descripcion,l.sku||l.articulo,l.gtin);
     HEB_LAYOUT=saved;
     fetch(LABELARY,{method:'POST',headers:{'Accept':'image/png','Content-Type':'application/x-www-form-urlencoded'},body:z})
       .then(r=>r.ok?r.blob():Promise.reject()).then(b=>{$('#heb-preview').innerHTML=`<img src="${URL.createObjectURL(b)}">`;}).catch(()=>{});
