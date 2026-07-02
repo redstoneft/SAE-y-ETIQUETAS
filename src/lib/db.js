@@ -411,6 +411,42 @@ async function darDeAltaCliente({ codigo, nombre, numProv, nombreTpl, zpl }) {
   }
 }
 
+/** Da de alta los artículos de un pedido en el catálogo (idempotente):
+ *  productos (sku_interno = nuestra clave, gtin, descripción) y
+ *  sku_map (sku del cliente -> nuestra clave). */
+async function registrarArticulos(clienteCodigo, lineas) {
+  if (!supabase) return { productos: 0, mapeos: 0 };
+  let clienteId;
+  try { clienteId = await getClienteId(clienteCodigo); } catch (e) { return { productos: 0, mapeos: 0 }; }
+
+  // nuestra clave: cod_proveedor (Alsuper) o el sku/articulo del cliente
+  const norm = (l) => ({
+    claveInterna: (l.cod_proveedor || l.sku || l.articulo || "").toString().trim(),
+    skuCliente: (l.articulo || l.sku || "").toString().trim(),
+    gtin: l.gtin, descripcion: l.descripcion,
+  });
+  const items = lineas.map(norm).filter((x) => x.claveInterna && x.skuCliente);
+
+  // productos (dedup por claveInterna)
+  const vistos = {};
+  const prods = items.filter((x) => !vistos[x.claveInterna] && (vistos[x.claveInterna] = 1))
+    .map((x) => ({ sku_interno: x.claveInterna, descripcion: x.descripcion, gtin: x.gtin, activo: true }));
+  if (prods.length) {
+    const { error } = await supabase.from("productos").upsert(prods, { onConflict: "sku_interno" });
+    if (error) console.log("[catalogo] productos:", error.message);
+  }
+  // sku_map (dedup por skuCliente)
+  const vistos2 = {};
+  const maps = items.filter((x) => !vistos2[x.skuCliente] && (vistos2[x.skuCliente] = 1))
+    .map((x) => ({ cliente_id: clienteId, sku_cliente: x.skuCliente,
+      sku_interno: x.claveInterna, descripcion_cliente: x.descripcion }));
+  if (maps.length) {
+    const { error } = await supabase.from("sku_map").upsert(maps, { onConflict: "cliente_id,sku_cliente" });
+    if (error) console.log("[catalogo] sku_map:", error.message);
+  }
+  return { productos: prods.length, mapeos: maps.length };
+}
+
 /** Da de alta HEB y Alsuper (cliente + plantilla). */
 async function seedHEB() {
   await darDeAltaCliente({ codigo: "HEB", nombre: "HEB", numProv: "13217", nombreTpl: "HEB caja", zpl: HEB_ZPL });
@@ -496,6 +532,7 @@ module.exports = {
   marcarRevisionManual,
   encolarImpresion,
   obtenerPedidoCompleto,
+  registrarArticulos,
   seedHEB,
   tomarTrabajoImpresion,
   reportarImpresion,

@@ -156,6 +156,7 @@ app.post("/api/heb/upload", requireAuth, upload.single("file"), async (req, res)
     catch (e) { return res.status(422).json({ error: "No se pudo leer el PDF de HEB", detalle: e.message }); }
     if (!pedido.encabezado.num_orden_compra)
       return res.status(422).json({ error: "No se encontró la Orden de Compra en el PDF" });
+    try { await db.registrarArticulos("HEB", pedido.lineas); } catch (e) { /* no bloquea */ }
     const etiquetas = generarEtiquetasHEB(pedido);
     res.json({
       ok: true, cliente: "HEB",
@@ -177,6 +178,7 @@ app.post("/api/alsuper/upload", requireAuth, upload.single("file"), async (req, 
     try { pedido = await extraerAlsuper(req.file.buffer); }
     catch (e) { return res.status(422).json({ error: "No se pudo leer el PDF de Alsuper", detalle: e.message }); }
     if (!pedido.lineas.length) return res.status(422).json({ error: "No se encontraron productos en el PDF" });
+    try { await db.registrarArticulos("ALSUPER", pedido.lineas); } catch (e) { /* no bloquea */ }
     const etiquetas = generarEtiquetasAlsuper(pedido);
     res.json({
       ok: true, cliente: "ALSUPER",
