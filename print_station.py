@@ -95,12 +95,18 @@ def tomar_trabajo():
 
 
 def reportar(job_id, impresas, fallidas, estatus, error_msg=None):
+    """Reporta avance/resultado. Devuelve True si el backend pide CANCELAR."""
     try:
-        requests.post(f"{BACKEND_URL}/api/print-station/{job_id}/resultado",
-                      json={"impresas": impresas, "fallidas": fallidas,
-                            "estatus": estatus, "error_msg": error_msg}, timeout=15)
+        r = requests.post(f"{BACKEND_URL}/api/print-station/{job_id}/resultado",
+                          json={"impresas": impresas, "fallidas": fallidas,
+                                "estatus": estatus, "error_msg": error_msg}, timeout=15)
+        try:
+            return bool(r.json().get("cancelar"))
+        except Exception:
+            return False
     except Exception as e:
         print(f"  (no se pudo reportar: {e})")
+        return False
 
 
 # ====== Procesar un trabajo ======
@@ -132,10 +138,13 @@ def procesar(job):
                          "La impresora no responde; trabajo detenido")
                 print("    impresora no responde, deteniendo trabajo")
                 return
-        # reporte de avance cada 10 etiquetas
-        if i % 10 == 0 or i == total:
-            reportar(job["id"], impresas, fallidas, "imprimiendo")
+        # reporte de avance cada 5 etiquetas; si el usuario canceló, detener
+        if i % 5 == 0 or i == total:
+            cancelar = reportar(job["id"], impresas, fallidas, "imprimiendo")
             print(f"    avance: {i}/{total}")
+            if cancelar:
+                print("    >> CANCELADO por el usuario, deteniendo trabajo")
+                return
 
     estatus = "completo" if fallidas == 0 else "error"
     reportar(job["id"], impresas, fallidas, estatus)

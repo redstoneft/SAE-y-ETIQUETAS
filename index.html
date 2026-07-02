@@ -669,6 +669,7 @@
       <button class="mb-primary" style="padding:7px 14px;border-radius:6px;font-size:12px" id="rp-go">Reimprimir</button>
     </div>
     <div class="modal-btns">
+      <button class="mb-ghost" id="print-cancel" style="background:var(--stop-bg);color:var(--stop);display:none">Cancelar impresión</button>
       <button class="mb-ghost" id="print-close">Cerrar</button>
     </div>
   </div>
@@ -1377,9 +1378,13 @@ function hacerArrastrable(el,prop){
 }
 
 /* pregunta al backend el avance real del trabajo de impresión */
+let JOB_ACTUAL=null, JOB_IV=null;
 function seguirAvance(jobId,total){
+  JOB_ACTUAL=jobId;
+  const cbtn=document.getElementById('print-cancel'); if(cbtn){cbtn.style.display='';cbtn.disabled=false;cbtn.textContent='Cancelar impresión';}
   const bar=document.getElementById('print-bar'),cnt=document.getElementById('print-count'),pct=document.getElementById('print-pct');
-  const iv=setInterval(async()=>{
+  clearInterval(JOB_IV);
+  JOB_IV=setInterval(async()=>{
     try{
       const r=await fetch(API_BASE+'/api/print-station/trabajo/'+jobId);
       const s=await r.json();
@@ -1387,11 +1392,15 @@ function seguirAvance(jobId,total){
       const tot=s.total||total;
       const p=Math.round(hechas/tot*100);
       bar.style.width=p+'%';cnt.textContent=`${s.impresas||0} de ${tot}`;pct.textContent=p+'%';
-      if(s.estatus==='completo'||s.estatus==='error'){
-        clearInterval(iv);
+      if(s.estatus==='completo'||s.estatus==='error'||s.estatus==='cancelado'){
+        clearInterval(JOB_IV); JOB_ACTUAL=null;
+        const cb=document.getElementById('print-cancel'); if(cb)cb.style.display='none';
         if(s.estatus==='completo'){
           document.getElementById('print-title').textContent='Impresión completa';
           document.getElementById('print-sub').textContent=`${s.impresas} etiquetas impresas en la Zebra.`;
+        }else if(s.estatus==='cancelado'){
+          document.getElementById('print-title').textContent='Impresión cancelada';
+          document.getElementById('print-sub').textContent=`Se detuvo tras ${s.impresas||0} etiquetas. Las que ya estaban en la impresora pueden salir.`;
         }else{
           document.getElementById('print-title').textContent='Impresión con fallas';
           document.getElementById('print-sub').textContent=(s.error_msg||`${s.fallidas} etiquetas fallaron`)+'. Revisa la impresora y reimprime el rango.';
@@ -1402,6 +1411,12 @@ function seguirAvance(jobId,total){
       }
     }catch(e){/* reintenta en el siguiente tick */}
   },1500);
+}
+async function cancelarImpresionActual(){
+  if(!JOB_ACTUAL){return;}
+  const cb=document.getElementById('print-cancel'); if(cb){cb.disabled=true;cb.textContent='Cancelando…';}
+  try{ await fetch(API_BASE+'/api/print-station/'+JOB_ACTUAL+'/cancelar',{method:'POST'}); }
+  catch(e){ if(cb){cb.disabled=false;cb.textContent='Cancelar impresión';} }
 }
 function simularImpresion(total){
   let n=0;
@@ -1588,6 +1603,7 @@ hb.onclick=()=>{hb.classList.remove('open');hd.classList.remove('open');};
 let htim=null;
 document.getElementById('hist-search').oninput=(e)=>{clearTimeout(htim);htim=setTimeout(()=>cargarHistorial(e.target.value.trim()),300);};
 document.getElementById('print-close').onclick=()=>document.getElementById('print-bg').classList.remove('open');
+document.getElementById('print-cancel').onclick=cancelarImpresionActual;
 document.getElementById('rp-go').onclick=()=>{
   const f=+document.getElementById('rp-from').value,t=+document.getElementById('rp-to').value;
   const cnt=t-f+1;

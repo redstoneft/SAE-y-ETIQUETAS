@@ -320,7 +320,17 @@ app.get("/api/print-station/siguiente", async (req, res) => {
 // La estación reporta avance/resultado.
 app.post("/api/print-station/:id/resultado", async (req, res) => {
   try {
-    await db.reportarImpresion(req.params.id, req.body);
+    const r = await db.reportarImpresion(req.params.id, req.body);
+    res.json({ ok: true, cancelar: r ? r.cancelar : false });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// El usuario cancela un trabajo de impresión en curso.
+app.post("/api/print-station/:id/cancelar", requireAuth, async (req, res) => {
+  try {
+    await db.cancelarImpresion(req.params.id);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

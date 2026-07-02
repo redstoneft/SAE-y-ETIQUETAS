@@ -314,9 +314,16 @@ async function tomarTrabajoImpresion(estacion = "zebra-01") {
   return { id: job.id, pedido_id: job.pedido_id, etiquetas: job.etiquetas, total: job.total };
 }
 
-/** La estación reporta el avance/resultado de un trabajo de impresión. */
+/** La estación reporta el avance/resultado. Devuelve {cancelar} para que la
+ *  estación se detenga si el usuario canceló el trabajo. */
 async function reportarImpresion(jobId, { impresas, fallidas, estatus, error_msg }) {
-  if (!supabase) { console.log(`[dry] impresión ${jobId}: ${impresas} ok, ${fallidas} fallas`); return; }
+  if (!supabase) { console.log(`[dry] impresión ${jobId}: ${impresas} ok, ${fallidas} fallas`); return { cancelar: false }; }
+  // Si el trabajo fue cancelado, no lo sobreescribimos; avisamos a la estación.
+  const { data: cur } = await supabase.from("print_queue").select("estatus").eq("id", jobId).single();
+  if (cur && cur.estatus === "cancelado") {
+    await supabase.from("print_queue").update({ impresas, fallidas }).eq("id", jobId);
+    return { cancelar: true };
+  }
   const upd = { impresas, fallidas, estatus };
   if (estatus === "completo" || estatus === "error") upd.completado_en = new Date().toISOString();
   if (error_msg) upd.error_msg = error_msg;
@@ -329,6 +336,15 @@ async function reportarImpresion(jobId, { impresas, fallidas, estatus, error_msg
       detalle: error_msg || "Revisar la impresora Zebra",
     });
   }
+  return { cancelar: false };
+}
+
+/** Cancela un trabajo de impresión en curso (la estación se detiene al reportar). */
+async function cancelarImpresion(jobId) {
+  if (!supabase) return;
+  await supabase.from("print_queue")
+    .update({ estatus: "cancelado", completado_en: new Date().toISOString() })
+    .eq("id", jobId).in("estatus", ["pendiente", "tomado", "imprimiendo"]);
 }
 
 /** Estado de un trabajo de impresión (para avance en dashboard). */
@@ -465,5 +481,6 @@ module.exports = {
   seedHEB,
   tomarTrabajoImpresion,
   reportarImpresion,
+  cancelarImpresion,
   estadoTrabajoImpresion,
 };
