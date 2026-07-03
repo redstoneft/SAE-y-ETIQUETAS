@@ -446,6 +446,7 @@
     <button class="hist-btn" id="open-hist" title="Historial"><span>⊞</span> Historial</button>
     <button class="alert-btn" id="open-alerts" title="Alertas">
       <span>◔</span><span class="alert-count" id="alert-count" style="display:none">0</span></button>
+    <button class="hist-btn" id="usb-btn" title="Conectar la Zebra por USB">🖨 Conectar Zebra</button>
     <div class="conn"><span class="dot"></span><span id="conn">en línea</span> <span id="whoami" style="color:#fff;opacity:.8"></span></div>
     <button class="hist-btn" id="logout-btn" title="Cerrar sesión" style="display:none">Salir</button>
   </div>
@@ -1258,6 +1259,7 @@ async function imprimirReal(desde,hasta){
    pedido, para un rango, o para una selección manual de cajas) */
 async function encolarYSeguir(etiquetas){
   if(!etiquetas.length) return;
+  if(USB_DEV) return imprimirLocalUSB(etiquetas, pedido&&pedido.encabezado.num_orden_compra);
   const total=etiquetas.length;
   document.getElementById('print-bg').classList.add('open');
   document.getElementById('print-title').textContent='Imprimiendo etiquetas';
@@ -1379,6 +1381,71 @@ function hacerArrastrable(el,prop){
   });
 }
 
+/* ===== Impresión directa por WebUSB (sin exe) ===== */
+let USB_DEV=null, USB_EPOUT=null, USB_INTF=null, USB_PRINTING=false, USB_CANCEL=false;
+const ZEBRA_VID=0x0A5F;
+function usbSoportado(){ return !!(navigator.usb); }
+function actualizarUSBui(){
+  const b=document.getElementById('usb-btn'); if(!b) return;
+  if(USB_DEV){ b.textContent='🖨 Zebra conectada'; b.style.background='rgba(52,211,153,.28)'; }
+  else { b.textContent='🖨 Conectar Zebra'; b.style.background=''; }
+}
+async function _abrirUSB(dev){
+  await dev.open();
+  if(dev.configuration===null) await dev.selectConfiguration(1);
+  for(const it of dev.configuration.interfaces){
+    const o=it.alternate.endpoints.find(e=>e.direction==='out');
+    if(o){ await dev.claimInterface(it.interfaceNumber);
+      USB_DEV=dev; USB_INTF=it.interfaceNumber; USB_EPOUT=o.endpointNumber; return true; }
+  }
+  return false;
+}
+async function conectarUSB(){
+  if(!usbSoportado()){ alert('Tu navegador no soporta WebUSB.\nUsa Google Chrome o Microsoft Edge en la PC de la Zebra.'); return; }
+  try{
+    const dev=await navigator.usb.requestDevice({filters:[{vendorId:ZEBRA_VID}]});
+    const ok=await _abrirUSB(dev);
+    if(!ok){ alert('No encontré el canal de impresión en la Zebra.'); return; }
+    actualizarUSBui();
+  }catch(e){
+    if(e.name==='NotFoundError') return; // canceló el diálogo
+    alert('No se pudo conectar la Zebra: '+e.message+'\n\nEn Windows suele deberse al driver: la impresora tiene que estar como dispositivo WinUSB para que el navegador la use. Te explico cómo.');
+  }
+}
+async function reconectarUSBGuardada(){
+  if(!usbSoportado()) return;
+  try{
+    const devs=await navigator.usb.getDevices();
+    const dev=devs.find(d=>d.vendorId===ZEBRA_VID);
+    if(dev){ await _abrirUSB(dev); actualizarUSBui(); }
+  }catch(e){}
+}
+/* imprime una lista de etiquetas DIRECTO por USB, con avance y cancelación */
+async function imprimirLocalUSB(etiquetas, oc){
+  const total=etiquetas.length; if(!total) return;
+  USB_PRINTING=true; USB_CANCEL=false;
+  const g=id=>document.getElementById(id);
+  g('print-bg').classList.add('open');
+  g('print-title').textContent='Imprimiendo etiquetas';
+  g('print-sub').textContent=`${oc?('OC '+oc+' · '):''}${total} etiquetas por USB…`;
+  g('reprint-row').style.display='none';
+  const cb=g('print-cancel'); if(cb){cb.style.display='';cb.disabled=false;cb.textContent='Cancelar impresión';}
+  const enc=new TextEncoder(); let i=0;
+  for(;i<total;i++){
+    if(USB_CANCEL) break;
+    try{ await USB_DEV.transferOut(USB_EPOUT, enc.encode(etiquetas[i].zpl)); }
+    catch(e){ g('print-title').textContent='Error de impresión';
+      g('print-sub').textContent='Se perdió la conexión con la Zebra: '+e.message;
+      USB_PRINTING=false; USB_DEV=null; actualizarUSBui(); if(cb)cb.style.display='none'; return; }
+    const p=Math.round((i+1)/total*100);
+    g('print-bar').style.width=p+'%'; g('print-count').textContent=`${i+1} de ${total}`; g('print-pct').textContent=p+'%';
+    if((i+1)%3===0) await new Promise(r=>setTimeout(r,0));
+  }
+  USB_PRINTING=false; if(cb) cb.style.display='none';
+  if(USB_CANCEL){ g('print-title').textContent='Impresión cancelada'; g('print-sub').textContent=`Se detuvo tras ${i} etiquetas.`; }
+  else { g('print-title').textContent='Impresión completa'; g('print-sub').textContent=`${total} etiquetas impresas en la Zebra.`; }
+}
+
 /* pregunta al backend el avance real del trabajo de impresión */
 let JOB_ACTUAL=null, JOB_IV=null;
 function seguirAvance(jobId,total){
@@ -1415,6 +1482,7 @@ function seguirAvance(jobId,total){
   },1500);
 }
 async function cancelarImpresionActual(){
+  if(USB_PRINTING){ USB_CANCEL=true; return; }   // cancelación local inmediata
   if(!JOB_ACTUAL){return;}
   const cb=document.getElementById('print-cancel'); if(cb){cb.disabled=true;cb.textContent='Cancelando…';}
   try{ await fetch(API_BASE+'/api/print-station/'+JOB_ACTUAL+'/cancelar',{method:'POST'}); }
@@ -1566,6 +1634,7 @@ function hebPreview(){
 }
 function imprimirHEBlista(etiquetas){
   if(!etiquetas.length){alert('No hay etiquetas para imprimir.');return;}
+  if(USB_DEV) return imprimirLocalUSB(etiquetas, HEB&&HEB.oc);
   document.getElementById('print-bg').classList.add('open');
   document.getElementById('print-title').textContent='Imprimiendo etiquetas';
   document.getElementById('reprint-row').style.display='none';
@@ -1682,6 +1751,10 @@ function checarRevision(d){
 }
 /* navegación por pestañas */
 document.querySelectorAll('#topnav .navlink').forEach(b=>b.onclick=()=>showView(b.dataset.view));
+/* impresora USB (WebUSB) */
+document.getElementById('usb-btn').onclick=conectarUSB;
+if(!usbSoportado()){const ub=document.getElementById('usb-btn'); if(ub){ub.title='Requiere Chrome/Edge';}}
+reconectarUSBGuardada();
 /* selector de cliente + HEB */
 document.querySelectorAll('#cliente-sel .cli-btn').forEach(b=>b.onclick=()=>setCliente(b.dataset.cli));
 document.getElementById('heb-print-all').onclick=imprimirHEBtodas;
