@@ -1685,7 +1685,7 @@ function renderHcalPreview(){
 }
 const drop=$('#drop');
 drop.onclick=()=>$('#file').click();
-$('#file').onchange=e=>e.target.files[0]&&subir(e.target.files[0]);
+$('#file').onchange=e=>{ if(e.target.files[0]) subir(e.target.files[0]); e.target.value=''; };
 ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
 ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
 drop.addEventListener('drop',e=>e.dataTransfer.files[0]&&subir(e.dataTransfer.files[0]));
@@ -1751,10 +1751,12 @@ function checarRevision(d){
 }
 /* navegación por pestañas */
 document.querySelectorAll('#topnav .navlink').forEach(b=>b.onclick=()=>showView(b.dataset.view));
-/* impresora USB (WebUSB) */
-document.getElementById('usb-btn').onclick=conectarUSB;
-if(!usbSoportado()){const ub=document.getElementById('usb-btn'); if(ub){ub.title='Requiere Chrome/Edge';}}
-reconectarUSBGuardada();
+/* impresora USB (WebUSB) — a prueba de fallos para no romper el resto */
+try{
+  const ub=document.getElementById('usb-btn');
+  if(ub){ ub.onclick=conectarUSB; if(!usbSoportado()) ub.title='Requiere Chrome/Edge'; }
+  reconectarUSBGuardada();
+}catch(e){ console.warn('USB init:', e); }
 /* selector de cliente + HEB */
 document.querySelectorAll('#cliente-sel .cli-btn').forEach(b=>b.onclick=()=>setCliente(b.dataset.cli));
 document.getElementById('heb-print-all').onclick=imprimirHEBtodas;
