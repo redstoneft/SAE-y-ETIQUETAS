@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manual del operador · Etiquetas Walmart → SAE → Zebra</title>
+<style>
+  :root{
+    --paper:#F5F6F7;--card:#FFFFFF;--ink:#181A1E;--muted:#565C64;--faint:#8A9099;
+    --line:#E3E6E9;--line-strong:#CFD4D9;--accent:#0E5A63;--accent-ink:#0A464D;--accent-soft:#E6F0F0;
+    --amber:#A9660F;--amber-soft:#FaF0DF;--amber-line:#EAD3A8;--green:#2C7A50;--green-soft:#E6F1EA;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  .wrap{background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.6;
+    -webkit-font-smoothing:antialiased;padding:clamp(16px,4vw,48px) clamp(14px,4vw,32px) 64px;}
+  .sheet{max-width:840px;margin:0 auto}
+  .masthead{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:clamp(22px,4vw,38px);position:relative;overflow:hidden;}
+  .masthead::before{content:"";position:absolute;inset:0 auto 0 0;width:6px;
+    background:linear-gradient(180deg,var(--accent),var(--amber));}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent);font-weight:600;margin:0 0 12px;}
+  h1{font-size:clamp(26px,5vw,40px);line-height:1.08;margin:0 0 12px;font-weight:800;
+    letter-spacing:-.02em;text-wrap:balance;}
+  h1 .flow{color:var(--faint);font-weight:700}
+  .lede{font-size:clamp(15px,2.2vw,17px);color:var(--muted);margin:0;max-width:60ch}
+  section{margin-top:clamp(30px,5vw,46px)}
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin:0 0 16px}
+  .sec-kicker{font-family:var(--mono);font-size:12px;color:var(--faint);font-weight:600;
+    letter-spacing:.08em;flex:none;padding-top:2px;}
+  h2{font-size:clamp(19px,3vw,23px);margin:0;font-weight:800;letter-spacing:-.01em}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:clamp(16px,3vw,24px);}
+  .checklist{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+  .checklist li{display:flex;gap:12px;align-items:flex-start}
+  .tick{flex:none;width:22px;height:22px;border-radius:6px;margin-top:1px;background:var(--accent-soft);
+    border:1px solid #BFDAD9;display:grid;place-items:center;color:var(--accent);font-weight:800;font-size:13px;}
+  .checklist b{font-weight:700}
+  .note{margin-top:16px;background:var(--accent-soft);border:1px solid #C7DFDE;border-radius:12px;
+    padding:14px 16px;font-size:14.5px;color:var(--accent-ink);}
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .mode{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .mode h3{margin:0 0 4px;font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px}
+  .mode .tag{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    color:#fff;background:var(--accent);border-radius:999px;padding:3px 9px;font-weight:600;}
+  .mode.b .tag{background:var(--amber)}
+  .mode dl{margin:12px 0 0;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:14px}
+  .mode dt{color:var(--faint);font-weight:600;font-family:var(--mono);font-size:11.5px;
+    letter-spacing:.04em;text-transform:uppercase;padding-top:2px}
+  .mode dd{margin:0;color:var(--ink)}
+  .pick{margin-top:14px;font-size:14.5px;color:var(--muted)}
+  .pick b{color:var(--ink)}
+  .steps{list-style:none;margin:0;padding:0;counter-reset:step;display:grid;gap:14px}
+  .step{display:grid;grid-template-columns:44px 1fr;gap:16px;background:var(--card);
+    border:1px solid var(--line);border-radius:14px;padding:18px 20px;align-items:start;}
+  .step-num{counter-increment:step;width:44px;height:44px;border-radius:11px;flex:none;
+    background:var(--accent);color:#fff;font-weight:800;font-size:19px;display:grid;place-items:center;
+    font-variant-numeric:tabular-nums;}
+  .step-num::before{content:counter(step)}
+  .step-body h3{margin:0 0 6px;font-size:16.5px;font-weight:800}
+  .step-body p{margin:0 0 8px}
+  .step-body p:last-child{margin-bottom:0}
+  .step-body ul{margin:8px 0 0;padding-left:18px}
+  .step-body li{margin:3px 0}
+  kbd,.ui{font-family:var(--mono);font-size:.86em;background:#F0F2F3;border:1px solid var(--line-strong);
+    border-radius:6px;padding:1px 7px;white-space:nowrap;font-weight:600;color:#2A2E33;}
+  .ui{background:var(--accent-soft);border-color:#C7DFDE;color:var(--accent-ink)}
+  .callout{border-radius:10px;padding:11px 14px;font-size:14px;margin-top:10px}
+  .callout.warn{background:var(--amber-soft);border:1px solid var(--amber-line);color:#7A4A0C}
+  .callout.ok{background:var(--green-soft);border:1px solid #BFE0CC;color:#215E3D}
+  .callout b{font-weight:800}
+  .download{background:linear-gradient(180deg,#0E5A63,#0A464D);color:#fff;border-radius:14px;
+    padding:20px 22px;display:flex;flex-wrap:wrap;gap:14px 20px;align-items:center;justify-content:space-between;}
+  .download .lbl{font-size:14px;opacity:.85;margin:0 0 4px;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase}
+  .download .url{font-family:var(--mono);font-size:13px;word-break:break-all;color:#CFEDE9}
+  .download .badge{font-weight:800;font-size:15px}
+  .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+  table{border-collapse:collapse;width:100%;min-width:520px;font-size:14.5px}
+  thead th{text-align:left;font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--faint);font-weight:600;padding:12px 16px;border-bottom:1px solid var(--line-strong);background:#FBFCFC;}
+  tbody td{padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+  tbody tr:last-child td{border-bottom:none}
+  tbody td:first-child{font-weight:700;width:34%;border-left:3px solid var(--amber)}
+  .rules{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+  .rules li{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);
+    border-radius:11px;padding:13px 16px;font-size:14.5px;}
+  .rules .dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--amber);margin-top:7px}
+  .rules b{font-weight:800}
+  footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);font-size:13.5px;color:var(--faint);text-align:center;}
+  @media (max-width:620px){.modes{grid-template-columns:1fr}
+    .step{grid-template-columns:38px 1fr;gap:12px;padding:16px}.step-num{width:38px;height:38px;font-size:17px}}
+  @media print{.wrap{background:#fff;padding:0}
+    .masthead,.card,.mode,.step,.table-wrap,.rules li{border-color:#bbb;box-shadow:none;break-inside:avoid;}
+    .download{background:#fff;color:#000;border:1px solid #999}.download .url{color:#000}.download .lbl{color:#333}
+    .step-num,.mode .tag{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    section{margin-top:22px}h1{font-size:26px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="sheet">
+
+    <header class="masthead">
+      <p class="eyebrow">Impresora Zebra GK420T · Guía de operación</p>
+      <h1>Manual del operador<br><span class="flow">Walmart → SAE → Zebra</span></h1>
+      <p class="lede">Cómo capturar un pedido, generar la factura en SAE e imprimir las etiquetas
+      —una por caja— sin saber de computación. Solo sigue los pasos en orden.</p>
+    </header>
+
+    <section>
+      <div class="sec-head"><span class="sec-kicker">01</span><h2>Antes de empezar</h2></div>
+      <div class="card">
+        <ul class="checklist">
+          <li><span class="tick">✓</span><div><b>Tu usuario y contraseña</b> de la app (te los da tu supervisor).</div></li>
+          <li><span class="tick">✓</span><div>La <b>Zebra GK420T</b> encendida, con rollo de etiquetas y conectada por USB.</div></li>
+          <li><span class="tick">✓</span><div>El <b>PDF del pedido</b> de Walmart (descargado de RetailLink).</div></li>
+          <li><span class="tick">✓</span><div><b>Aspel SAE</b> abierto en la computadora.</div></li>
+        </ul>
+        <div class="note"><b>Dónde se abre la app:</b> en <b>Google Chrome</b>, en la dirección
+        web que te pasó tu supervisor (termina en <span class="ui">.netlify.app</span>). El sistema
+        ya está conectado al servidor; tú no configuras nada.</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><span class="sec-kicker">02</span><h2>Las dos formas de imprimir</h2></div>
+      <div class="modes">
+        <div class="mode a">
+          <h3><span class="tag">Modo A</span> Directo</h3>
+          <dl>
+            <dt>Cuándo</dt><dd>Trabajas en la <b>misma PC</b> que tiene la Zebra.</dd>
+            <dt>Qué haces</dt><dd>En la web tocas <span class="ui">🖨 Conectar Zebra</span> y eliges la impresora.</dd>
+            <dt>Navegador</dt><dd>Chrome o Edge (obligatorio para el USB).</dd>
+          </dl>
+        </div>
+        <div class="mode b">
+          <h3><span class="tag">Modo B</span> Estación</h3>
+          <dl>
+            <dt>Cuándo</dt><dd>La Zebra está en otra PC, o quieres que imprima sola.</dd>
+            <dt>Qué haces</dt><dd>Dejas corriendo el programa <span class="ui">EstacionZebra.exe</span>.</dd>
+            <dt>Navegador</dt><dd>Cualquiera.</dd>
+          </dl>
+        </div>
+      </div>
+      <p class="pick">¿No estás seguro? Usa el <b>Modo A</b>: es el más simple. Ambos imprimen igual de bien.</p>
+    </section>
+
+    <section>
+      <div class="sec-head"><span class="sec-kicker">03</span><h2>Paso a paso</h2></div>
+      <ol class="steps">
+        <li class="step"><div class="step-num"></div><div class="step-body">
+          <h3>Entrar</h3>
+          <p>Abre la app en Chrome, escribe tu <b>usuario</b> y <b>contraseña</b>, y toca <span class="ui">Entrar</span>.</p>
+        </div></li>
+        <li class="step"><div class="step-num"></div><div class="step-body">
+          <h3>Elegir la cadena y cargar el pedido</h3>
+          <p>En la pestaña <span class="ui">Operar</span>, elige la cadena del pedido
+          (<span class="ui">Walmart</span>, <span class="ui">HEB</span>, <span class="ui">Alsuper</span> o <span class="ui">Casa Ley</span>)
+          y <b>arrastra el PDF</b> al recuadro <em>“Arrastra el PDF del pedido”</em>.</p>
+          <ul><li>¿Solo quieres probar? Usa <span class="ui">Cargar pedido de ejemplo</span>.</li></ul>
+        </div></li>
+        <li class="step"><div class="step-num"></div><div class="step-body">
+          <h3>Revisar la validación</h3>
+          <p>El sistema lee el PDF solo y te muestra el resultado.</p>
+          <div class="callout ok"><b>Verde / “Los totales cuadran”:</b> todo bien, continúa.</div>
+          <div class="callout warn"><b>Con errores</b> (precio distinto, existencia insuficiente, SKU inexistente…):
+          el pedido <b>NO avanza</b>. Corrige en el origen o avisa a tu supervisor. No se puede facturar un pedido con errores.</div>
+        </div></li>
+        <li class="step"><div class="step-num"></div><div class="step-body">
+          <h3>Capturar la factura en SAE</h3>
+          <p>Toca <span class="ui">Marcar capturado en SAE</span>. Se <b>descarga un archivo</b>.
+          En <b>Aspel SAE</b>: <span class="ui">Importar → seleccionar ese archivo</span>. SAE crea la factura <b>SIN TIMBRAR</b>.</p>
+          <div class="callout warn"><b>Tú revisas y timbras la factura manualmente en SAE.</b> El sistema nunca timbra.
+          La OC de Walmart queda escrita en la factura, y <b>1 OC = 1 factura</b> (no se puede duplicar).</div>
+        </div></li>
+        <li class="step"><div class="step-num"></div><div class="step-body">
+          <h3>Generar las etiquetas</h3>
+          <p>Toca <span class="ui">Generar etiquetas</span>. El sistema crea <b>una etiqueta por caja</b>
+          y te muestra la cuenta y una vista previa.</p>
+        </div></li>
+        <li class="step"><div class="step-num"></div><div class="step-body">
+          <h3>Imprimir en la Zebra</h3>
+          <p><b>Modo A:</b> si aún no lo hiciste, toca <span class="ui">🖨 Conectar Zebra</span>, elige tu impresora y acepta
+          (el botón cambia a <span class="ui">Zebra conectada</span>). Luego toca <span class="ui">Imprimir todas las etiquetas</span>
+          —o marca cajas y usa <span class="ui">Imprimir seleccionadas</span>.</p>
+          <p>Verás una barra de avance <em>“0 de N… imprimiendo”</em>. Al llegar al 100%, listo.</p>
+          <p><b>Modo B:</b> igual, pero quien imprime es la estación <span class="ui">EstacionZebra.exe</span> en la PC de la Zebra.</p>
+        </div></li>
+      </ol>
+    </section>
+
+    <section>
+      <div class="sec-head"><span class="sec-kicker">04</span><h2>Reimprimir cajas (si una salió mal)</h2></div>
+      <div class="card">
+        <p style="margin:0 0 8px">Usa <span class="ui">Reimprimir cajas de ___ a ___</span> (por ejemplo, de la 3 a la 5),
+        o marca cajas concretas y toca <span class="ui">Reimprimir seleccionadas</span>.</p>
+        <p style="margin:0">Si te equivocaste de trabajo, puedes <span class="ui">Cancelar impresión</span> mientras va en curso.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><span class="sec-kicker">05</span><h2>Instalar la estación (solo Modo B, una vez por PC)</h2></div>
+      <div class="download">
+        <div>
+          <p class="lbl">Descarga · siempre la última versión</p>
+          <span class="url">github.com/redstoneft/SAE-y-ETIQUETAS/releases/latest/download/EstacionZebra.exe</span>
+        </div>
+        <span class="badge">EstacionZebra.exe</span>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <ol style="margin:0;padding-left:20px">
+          <li style="margin-bottom:8px">En la <b>PC que tiene la Zebra</b>, abre el enlace de arriba y descarga el programa.</li>
+          <li style="margin-bottom:8px">Cópialo al Escritorio y dale <b>doble clic</b>. Si Windows muestra
+            <em>“Windows protegió tu PC”</em>: toca <span class="ui">Más información → Ejecutar de todas formas</span> (es normal).</li>
+          <li style="margin-bottom:8px">Se abre una ventana negra: <em>“Zebra detectada automáticamente… Revisando cada 5s”</em>.
+            <b>Déjala abierta</b>: mientras esté abierta, imprime sola.</li>
+          <li>Para que arranque al prender la PC: <kbd>Windows</kbd> + <kbd>R</kbd> →
+            escribe <kbd>shell:startup</kbd> → Enter → pega ahí un acceso directo del <span class="ui">.exe</span>.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><span class="sec-kicker">06</span><h2>Problemas comunes</h2></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Síntoma</th><th>Qué hacer</th></tr></thead>
+          <tbody>
+            <tr><td>No imprime nada</td><td>Revisa que la Zebra esté <b>encendida, con papel y cable USB</b>. En Modo A, que el botón diga <em>“Zebra conectada”</em>. En Modo B, que la ventana negra de la estación esté <b>abierta</b>.</td></tr>
+            <tr><td>No aparece la Zebra al “Conectar”</td><td>Usa <b>Chrome o Edge</b> (no Safari/Firefox). La impresora debe estar prendida y conectada <b>antes</b> de tocar el botón.</td></tr>
+            <tr><td>La validación sale con errores</td><td>El pedido <b>no puede facturarse</b> así. Revisa precios, existencias o SKU, o avisa a tu supervisor.</td></tr>
+            <tr><td>“OC duplicada” / rechazo</td><td>Esa Orden de Compra ya se facturó. <b>1 OC = 1 factura.</b> Búscala en la pestaña <span class="ui">Pedidos</span>.</td></tr>
+            <tr><td>SmartScreen bloquea el .exe</td><td><span class="ui">Más información → Ejecutar de todas formas.</span></td></tr>
+            <tr><td>Las etiquetas salen corridas</td><td>Rollo de <b>10×10 cm aprox.</b> y driver <b>ZDesigner (ZPL)</b>. Para ajuste fino, usa <span class="ui">Ajustar posición</span> en la app.</td></tr>
+            <tr><td>La factura salió mal / timbrada</td><td>El sistema <b>nunca timbra</b>; el timbrado lo haces tú en SAE. Revisa ahí.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><span class="sec-kicker">07</span><h2>Reglas que nunca cambian</h2></div>
+      <ul class="rules">
+        <li><span class="dot"></span><div><b>1 Orden de Compra = 1 factura</b> (no se puede duplicar).</div></li>
+        <li><span class="dot"></span><div>La factura se crea <b>sin timbrar</b>; <b>tú la revisas y timbras</b> en SAE.</div></li>
+        <li><span class="dot"></span><div>La <b>OC de Walmart</b> siempre queda escrita en la factura.</div></li>
+        <li><span class="dot"></span><div><b>Una etiqueta por caja.</b></div></li>
+        <li><span class="dot"></span><div>Si la validación falla, <b>el pedido no avanza a SAE</b>.</div></li>
+      </ul>
+    </section>
+
+    <footer>
+      ¿Algo no funciona? Toma una <b>foto de la pantalla</b> con el mensaje de error y mándala a tu supervisor o al soporte técnico.
+    </footer>
+
+  </div>
+</div>
+</body>
+</html>
