@@ -1,15 +1,21 @@
 name: Build EstacionZebra exe
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:            # botón manual "Run workflow" en la pestaña Actions
   push:
-    paths:
+    branches: [main]
+    paths:                      # rebuild automático si cambia el código o el workflow
       - 'print_station.py'
       - '.github/workflows/build-exe.yml'
+    tags:
+      - 'v*'                    # una etiqueta vX.Y publica el Release (ver abajo)
+
+permissions:
+  contents: write               # necesario para que la Action cree el Release
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-latest     # el .exe SOLO se puede compilar en Windows
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,9 +25,28 @@ jobs:
         run: pip install pyinstaller pywin32 requests
       - name: Construir EstacionZebra.exe
         run: pyinstaller --onefile --name EstacionZebra print_station.py
+
+      # Siempre: deja el .exe descargable desde la corrida (caduca a los 90 días).
       - name: Publicar el .exe como artefacto
         uses: actions/upload-artifact@v4
         with:
           name: EstacionZebra-exe
           path: dist/EstacionZebra.exe
           if-no-files-found: error
+
+      # Solo en etiquetas vX.Y: publica un Release con link permanente y público.
+      - name: Publicar en GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: EstacionZebra ${{ github.ref_name }}
+          files: dist/EstacionZebra.exe
+          body: |
+            **Estación de impresión Zebra GK420T** — ejecutable de Windows.
+
+            1. Descarga `EstacionZebra.exe` (abajo, en *Assets*).
+            2. Cópialo a la PC que tiene la GK420T conectada por USB.
+            3. Doble clic. Autodetecta la Zebra y empieza a jalar trabajos del backend.
+
+            Link de descarga siempre-al-día:
+            `https://github.com/redstoneft/SAE-y-ETIQUETAS/releases/latest/download/EstacionZebra.exe`
