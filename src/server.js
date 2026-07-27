@@ -158,13 +158,12 @@ app.post("/api/heb/upload", requireAuth, upload.single("file"), async (req, res)
     if (!pedido.encabezado.num_orden_compra)
       return res.status(422).json({ error: "No se encontró la Orden de Compra en el PDF" });
     try { await db.registrarArticulos("HEB", pedido.lineas); } catch (e) { /* no bloquea */ }
-    const etiquetas = generarEtiquetasHEB(pedido);
+    // etiquetas se generan en el cliente; no se envían (respuesta liviana)
     res.json({
       ok: true, cliente: "HEB",
       oc: pedido.encabezado.num_orden_compra,
       lineas: pedido.lineas,
       resumen: { productos: pedido.totales.productos, etiquetas: pedido.totales.etiquetas, unidades: pedido.totales.unidades },
-      etiquetas,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -180,13 +179,12 @@ app.post("/api/casaley/upload", requireAuth, upload.single("file"), async (req, 
     catch (e) { return res.status(422).json({ error: "No se pudo leer el PDF de Casa Ley", detalle: e.message }); }
     if (!pedido.lineas.length) return res.status(422).json({ error: "No se encontraron productos en el PDF" });
     try { await db.registrarArticulos("CASALEY", pedido.lineas.map((l) => ({ articulo: l.modelo, cod_proveedor: l.modelo, gtin: l.gtin, descripcion: l.descripcion }))); } catch (e) { /* no bloquea */ }
-    const etiquetas = generarEtiquetasCasaLey(pedido);
+    // etiquetas se generan en el cliente; no se envían (respuesta liviana)
     res.json({
       ok: true, cliente: "CASALEY",
       oc: pedido.encabezado.num_orden_compra,
       lineas: pedido.lineas,
       resumen: pedido.totales,
-      etiquetas,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -202,13 +200,12 @@ app.post("/api/alsuper/upload", requireAuth, upload.single("file"), async (req, 
     catch (e) { return res.status(422).json({ error: "No se pudo leer el PDF de Alsuper", detalle: e.message }); }
     if (!pedido.lineas.length) return res.status(422).json({ error: "No se encontraron productos en el PDF" });
     try { await db.registrarArticulos("ALSUPER", pedido.lineas); } catch (e) { /* no bloquea */ }
-    const etiquetas = generarEtiquetasAlsuper(pedido);
+    // etiquetas se generan en el cliente; no se envían (respuesta liviana)
     res.json({
       ok: true, cliente: "ALSUPER",
       oc: pedido.encabezado.num_orden_compra,
       lineas: pedido.lineas,
       resumen: pedido.totales,
-      etiquetas,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
