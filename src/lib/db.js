@@ -382,6 +382,17 @@ const ALSUPER_ZPL =
 ^FO150,430^BY3^BEN,130,Y,N^FD{{gtin}}^FS
 ^XZ`;
 
+/** Referencia: el WMS ya manda cada etiqueta renderizada; esta plantilla solo documenta el formato. */
+const WMS_ZPL = `^XA
+^CI28
+^PW812^LL671^LH0,0
+^FO24,24^GB764,38,38^FS
+^FO36,30^FR^A0N,28,28^FDLOCATION^FS
+^FO24,70^A0N,64,64^FD{{sku_interno}}^FS
+^FO24,150^BY3,3,95^BCN,95,Y,N,N^FD{{gtin}}^FS
+^FO24,290^A0N,24,24^FD{{descripcion}}^FS
+^XZ`;
+
 /** Da de alta un cliente + su plantilla de etiqueta (idempotente). */
 async function darDeAltaCliente({ codigo, nombre, numProv, nombreTpl, zpl }) {
   if (!supabase) return;
@@ -468,6 +479,8 @@ async function seedHEB() {
   await darDeAltaCliente({ codigo: "HEB", nombre: "HEB", numProv: "13217", nombreTpl: "HEB caja", zpl: HEB_ZPL });
   await darDeAltaCliente({ codigo: "ALSUPER", nombre: "Alsuper", numProv: "207850", nombreTpl: "Alsuper caja", zpl: ALSUPER_ZPL });
   await darDeAltaCliente({ codigo: "CASALEY", nombre: "Casa Ley", numProv: "1018566", nombreTpl: "Casa Ley caja", zpl: CASALEY_ZPL });
+  // WMS interno: etiquetas de ubicación de racks exportadas por el WMS (ZPL ya renderizado por el WMS)
+  await darDeAltaCliente({ codigo: "WMS", nombre: "WMS (ubicaciones de almacén)", numProv: null, nombreTpl: "WMS ubicación", zpl: WMS_ZPL });
 }
 
 /** Reconstruye un pedido completo (encabezado + líneas) para reabrirlo en el
@@ -485,8 +498,17 @@ async function obtenerPedidoCompleto(id) {
     precio_unitario: l.precio_unitario, total_linea: l.total_linea,
   }));
   const totalCajas = lineas.reduce((a, l) => a + (l.cajas || 0), 0);
+  // pedidos del WMS: las etiquetas ya están renderizadas en la tabla etiquetas
+  let etiquetasPrerender = null;
+  if (ped.tipo_orden === "ETIQUETAS_UBICACION") {
+    const { data: ets } = await supabase.from("etiquetas").select("caja_x,caja_y,zpl_render")
+      .eq("pedido_id", id).order("caja_x", { ascending: true });
+    etiquetasPrerender = (ets || []).map((e, i) => ({ caja_x: e.caja_x, caja_y: e.caja_y, zpl: e.zpl_render, sku_interno: lineas[i] ? lineas[i].sku_interno : "" }));
+  }
   return {
-    _id: ped.id, cliente: "WALMART", estatus: ped.estatus,
+    _id: ped.id, cliente: ped.tipo_orden === "ETIQUETAS_UBICACION" ? "WMS" : "WALMART", estatus: ped.estatus,
+    origen: ped.tipo_orden === "ETIQUETAS_UBICACION" ? "WMS" : undefined,
+    etiquetas_prerender: etiquetasPrerender,
     encabezado: {
       num_orden_compra: ped.num_orden_compra, fecha_pedido: ped.fecha_pedido,
       fecha_envio: ped.fecha_envio, fecha_cancelacion: ped.fecha_cancelacion,

@@ -60,6 +60,44 @@ app.post("/api/pedidos/upload", requireAuth, upload.single("file"), async (req, 
   try {
     if (!req.file) return res.status(400).json({ error: "Falta el archivo PDF (campo 'file')" });
 
+    // Archivo .json exportado por el WMS ("Exportar a app de etiquetas"): es un pedido ya
+    // armado con sus etiquetas ZPL renderizadas (ubicaciones de un rack). Se guarda como
+    // cualquier pedido y se imprime igual; no pasa por extracción ni por SAE.
+    const esJson = /\.json$/i.test(req.file.originalname || "") || /json/i.test(req.file.mimetype || "");
+    if (esJson) {
+      let wms;
+      try { wms = JSON.parse(req.file.buffer.toString("utf8")); }
+      catch (e) { return res.status(422).json({ error: "El archivo .json no es válido", detalle: e.message }); }
+      if (!wms || wms.origen !== "WMS" || !wms.encabezado || !Array.isArray(wms.lineas) || !Array.isArray(wms.etiquetas)) {
+        return res.status(422).json({ error: "El .json no es un pedido exportado por el WMS (falta origen/encabezado/lineas/etiquetas)" });
+      }
+      const oc = wms.encabezado.num_orden_compra;
+      const clienteId = await db.getClienteId("WMS");
+      if (await db.pedidoExiste(clienteId, oc)) {
+        return res.status(409).json({ error: `El pedido ${oc} ya fue importado. Bórralo del historial si quieres volver a imprimirlo.`, oc });
+      }
+      const pedido = {
+        ...wms,
+        cliente: "WMS",
+        control: { coincide_total: true, coincide_num_lineas: true, ...(wms.control || {}), total_cajas_etiquetas: wms.etiquetas.length },
+        extraccion: { confiable: true, requiere_revision: false, problemas: [], ...(wms.extraccion || {}) },
+        etiquetas_prerender: wms.etiquetas,
+      };
+      const pedidoId = await db.guardarPedido(pedido, clienteId, "validado");
+      await db.guardarEtiquetas(pedidoId, wms.etiquetas);
+      await db.auditar({ accion: "importar_pedido_wms", entidad: "pedido", entidadId: pedidoId,
+        despues: { oc, etiquetas: wms.etiquetas.length, tipo: wms.tipo }, ip: req.ip });
+      cache.set(pedidoId, pedido);
+      return res.json({
+        ok: true, pedido_id: pedidoId, oc, estatus: "validado", origen: "WMS",
+        validacion: { valido: true, errores: [], num_errores: 0, num_advertencias: 0 },
+        requiere_revision: false,
+        pedido,
+        resumen: { lineas: pedido.lineas.length, unidades: pedido.totales_pdf?.total_unidades ?? pedido.lineas.length, total: 0,
+          etiquetas_a_generar: wms.etiquetas.length, control_extraccion: pedido.control },
+      });
+    }
+
     // 1. Extraer (con manejo de PDF corrupto/ilegible)
     let pedido;
     try {
@@ -301,8 +339,11 @@ app.post("/api/pedidos/:id/etiquetas", requireAuth, async (req, res) => {
     const pedido = cache.get(pedidoId) || req.body?.pedido;
     if (!pedido) return res.status(404).json({ error: "Pedido no encontrado; reenvialo en body.pedido" });
 
-    const etiquetas = generarEtiquetasPedido(pedido);
-    await db.guardarEtiquetas(pedidoId, etiquetas);
+    // pedidos importados del WMS traen su ZPL ya renderizado (etiquetas de ubicación 101.6 × 84 mm)
+    const etiquetas = pedido.etiquetas_prerender && pedido.etiquetas_prerender.length
+      ? pedido.etiquetas_prerender
+      : generarEtiquetasPedido(pedido);
+    if (!pedido.etiquetas_prerender) await db.guardarEtiquetas(pedidoId, etiquetas);
 
     res.json({
       ok: true,

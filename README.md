@@ -57,6 +57,21 @@ python print_station.py
 # anota el nombre exacto de la impresora que lista
 ```
 
+## Etiquetas de ubicación desde el WMS
+
+El WMS (`redstoneft/wms`, `Etiquetas → Etiquetar un rack completo → Exportar a app de etiquetas`)
+genera un archivo `WMS-<almacén>-<zona>-<rack>.json` con el rack como *pedido*: una línea por
+posición y cada etiqueta ya renderizada en ZPL (101.6 × 84 mm, el mismo material que las
+etiquetas de caja). En el dashboard se sube igual que un PDF (el selector acepta `.json`):
+
+1. Arrastra el `.json` a la zona de carga. Aparece como pedido del cliente **WMS**, OC
+   `WMS-…`, sin paso de SAE (ya viene "capturado").
+2. **Generar etiquetas** → muestra la vista previa con el ZPL del WMS.
+3. **Imprimir en Zebra** → la estación de impresión las saca en orden de módulo y nivel.
+
+Reimprimir un rango funciona igual que con cualquier pedido. Si el mismo rack se vuelve a
+exportar, primero bórralo del historial (la OC se considera duplicada).
+
 ## Flujo de uso (API)
 
 ```bash

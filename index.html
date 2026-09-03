@@ -499,7 +499,7 @@
           <div class="up">↑</div>
           <b id="drop-title">Arrastra el PDF del pedido</b>
           <small>o haz clic para seleccionarlo</small>
-          <input type="file" id="file" accept="application/pdf" hidden>
+          <input type="file" id="file" accept="application/pdf,application/json,.json" hidden>
         </div>
         <div class="demo-row">
           <button class="btn" style="width:auto;display:inline-flex" id="demo">
@@ -1095,7 +1095,7 @@ async function genLabels(){
   $('#lblmeta').textContent=`Vista previa de las primeras etiquetas. Total a imprimir: ${p.control.total_cajas_etiquetas} (una por cada caja de cada línea).`;
   renderSelector();
   muestras.forEach(async(l,i)=>{
-    const z=zpl(cedis,oc,l.gtin,l.piezas_por_caja,1,l.cajas);
+    const z=(p.etiquetas_prerender&&p.etiquetas_prerender[i])?p.etiquetas_prerender[i].zpl:zpl(cedis,oc,l.gtin,l.piezas_por_caja,1,l.cajas);   // pedidos del WMS: ZPL ya renderizado
     try{
       const r=await fetch(LABELARY,{method:'POST',headers:{'Accept':'image/png','Content-Type':'application/x-www-form-urlencoded'},body:z});
       if(!r.ok)throw 0;
@@ -1238,6 +1238,12 @@ function abrirModalImpresion(total){
 /* construye TODAS las etiquetas ZPL (una por caja de cada línea) */
 function construirEtiquetas(desde,hasta){
   const p=pedido, oc=p.encabezado.num_orden_compra, cedis=p.encabezado.cedis_destino;
+  // pedido importado del WMS: las etiquetas (ubicaciones de rack) ya vienen renderizadas
+  if(p.etiquetas_prerender&&p.etiquetas_prerender.length){
+    const todas=p.etiquetas_prerender.map(e=>({zpl:e.zpl,caja_x:e.caja_x,caja_y:e.caja_y,sku_interno:e.sku_interno}));
+    if(desde||hasta){const d=desde||1,h=hasta||todas.length;return todas.filter((e,i)=>(i+1)>=d&&(i+1)<=h);}
+    return todas;
+  }
   const todas=[];
   p.lineas.forEach(l=>{
     const cajas=cajasDe(l);
@@ -1511,7 +1517,9 @@ function render(){kpis();flow();lines();invoice();validation();acts();history();
 
 async function subir(file){
   if(!API_BASE){alert('Modo demo: la extracción real ocurre en el backend.\nUsa "Cargar pedido de ejemplo" para ver el flujo completo.');return;}
-  if(CLIENTE!=='WMT') return subirHEB(file);
+  const esJsonWMS=/\.json$/i.test(file.name||'');
+  if(esJsonWMS){ if(CLIENTE!=='WMT') setCliente('WMT'); }      // los pedidos del WMS se ven en el flujo general
+  else if(CLIENTE!=='WMT') return subirHEB(file);
   const fd=new FormData();fd.append('file',file);
   try{
     const r=await fetch(API_BASE+'/api/pedidos/upload',{method:'POST',body:fd});
@@ -1522,7 +1530,8 @@ async function subir(file){
     cargarStats();
   }catch(e){alert('No se pudo contactar el backend: '+e.message);}
 }
-function cargar(p){pedido=p;pedido._v=validar(p);paso=1;
+function cargar(p){pedido=p;pedido._v=validar(p);
+  paso=(p.origen==='WMS'||(p.etiquetas_prerender&&p.etiquetas_prerender.length))?2:1;   // los pedidos del WMS no pasan por SAE: directo a etiquetas
   $('#card-labels').style.display='none';render();}
 
 /* ===== HEB ===== */
