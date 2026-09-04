@@ -1095,7 +1095,7 @@ async function genLabels(){
   $('#lblmeta').textContent=`Vista previa de las primeras etiquetas. Total a imprimir: ${p.control.total_cajas_etiquetas} (una por cada caja de cada línea).`;
   renderSelector();
   muestras.forEach(async(l,i)=>{
-    const z=(p.etiquetas_prerender&&p.etiquetas_prerender[i])?p.etiquetas_prerender[i].zpl:zpl(cedis,oc,l.gtin,l.piezas_por_caja,1,l.cajas);   // pedidos del WMS: ZPL ya renderizado
+    const z=zplDeCaja(l,1,l.cajas);   // pedidos del WMS: ZPL ya renderizado
     try{
       const r=await fetch(LABELARY,{method:'POST',headers:{'Accept':'image/png','Content-Type':'application/x-www-form-urlencoded'},body:z});
       if(!r.ok)throw 0;
@@ -1236,6 +1236,15 @@ function abrirModalImpresion(total){
 }
 
 /* construye TODAS las etiquetas ZPL (una por caja de cada línea) */
+/* ZPL de una caja: pedidos del WMS traen cada etiqueta ya renderizada (por posición); el resto usa el motor Walmart */
+function zplDeCaja(l,cx,cy){
+  const pre=pedido&&pedido.etiquetas_prerender;
+  if(pre&&pre.length){
+    const e=pre.find(x=>x.sku_interno===l.sku_interno&&(+x.caja_x===+cx||pre.filter(y=>y.sku_interno===l.sku_interno).length===1));
+    if(e) return e.zpl;
+  }
+  return zpl(pedido.encabezado.cedis_destino,pedido.encabezado.num_orden_compra,l.gtin,l.piezas_por_caja,cx,cy);
+}
 function construirEtiquetas(desde,hasta){
   const p=pedido, oc=p.encabezado.num_orden_compra, cedis=p.encabezado.cedis_destino;
   // pedido importado del WMS: las etiquetas (ubicaciones de rack) ya vienen renderizadas
@@ -1322,7 +1331,7 @@ function imprimirSeleccionadas(){
   const oc=pedido.encabezado.num_orden_compra, cedis=pedido.encabezado.cedis_destino;
   const etiquetas=sel.map(ch=>{
     const l=pedido.lineas[+ch.dataset.li], cx=+ch.dataset.bx, cy=cajasDe(l);
-    return {zpl:zpl(cedis,oc,l.gtin,l.piezas_por_caja,cx,cy),caja_x:cx,caja_y:cy,sku_interno:l.sku_interno};
+    return {zpl:zplDeCaja(l,cx,cy),caja_x:cx,caja_y:cy,sku_interno:l.sku_interno};
   });
   if(API_BASE) encolarYSeguir(etiquetas);
   else { document.getElementById('print-bg').classList.add('open');
