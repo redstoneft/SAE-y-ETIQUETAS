@@ -125,26 +125,27 @@
     </section>
 
     <section>
-      <div class="sec-head"><span class="sec-kicker">02</span><h2>Las dos formas de imprimir</h2></div>
+      <div class="sec-head"><span class="sec-kicker">02</span><h2>Cómo imprime la app</h2></div>
+      <p class="pick">La impresora se queda <b>tal cual la instaló Windows</b> (driver ZDesigner o el que venga). No hay que cambiarla a WinUSB ni tocar el puerto USB000: solo tener abierto <span class="ui">EstacionZebra.exe</span> en la PC que tiene la Zebra.</p>
       <div class="modes">
         <div class="mode a">
-          <h3><span class="tag">Modo A</span> Directo</h3>
+          <h3><span class="tag">Recomendado</span> Estación local</h3>
           <dl>
             <dt>Cuándo</dt><dd>Trabajas en la <b>misma PC</b> que tiene la Zebra.</dd>
-            <dt>Qué haces</dt><dd>En la web tocas <span class="ui">🖨 Conectar Zebra</span> y eliges la impresora.</dd>
-            <dt>Navegador</dt><dd>Chrome o Edge (obligatorio para el USB).</dd>
+            <dt>Qué haces</dt><dd>Abres <span class="ui">EstacionZebra.exe</span> una vez. La web lo detecta sola y el botón dice <span class="ui">🖨 [tu impresora]</span> en verde.</dd>
+            <dt>Navegador</dt><dd>Cualquiera.</dd>
           </dl>
         </div>
         <div class="mode b">
-          <h3><span class="tag">Modo B</span> Estación</h3>
+          <h3><span class="tag">Alterno</span> Estación remota</h3>
           <dl>
-            <dt>Cuándo</dt><dd>La Zebra está en otra PC, o quieres que imprima sola.</dd>
-            <dt>Qué haces</dt><dd>Dejas corriendo el programa <span class="ui">EstacionZebra.exe</span>.</dd>
+            <dt>Cuándo</dt><dd>La Zebra está en otra PC.</dd>
+            <dt>Qué haces</dt><dd>Dejas corriendo <span class="ui">EstacionZebra.exe</span> en la PC de la Zebra; la web manda el trabajo a la cola.</dd>
             <dt>Navegador</dt><dd>Cualquiera.</dd>
           </dl>
         </div>
       </div>
-      <p class="pick">¿No estás seguro? Usa el <b>Modo A</b>: es el más simple. Ambos imprimen igual de bien.</p>
+      <p class="pick">Si el botón dice <b>“Estación lista · elige impresora”</b>, tócalo y escribe el número de tu Zebra en la lista.</p>
     </section>
 
     <section>
@@ -182,11 +183,10 @@
         </div></li>
         <li class="step"><div class="step-num"></div><div class="step-body">
           <h3>Imprimir en la Zebra</h3>
-          <p><b>Modo A:</b> si aún no lo hiciste, toca <span class="ui">🖨 Conectar Zebra</span>, elige tu impresora y acepta
-          (el botón cambia a <span class="ui">Zebra conectada</span>). Luego toca <span class="ui">Imprimir todas las etiquetas</span>
-          —o marca cajas y usa <span class="ui">Imprimir seleccionadas</span>.</p>
+          <p>Revisa que el botón de arriba diga <span class="ui">🖨 [nombre de tu impresora]</span> en verde. Si dice <span class="ui">Conectar Zebra</span>, abre <span class="ui">EstacionZebra.exe</span> en esta PC y espera unos segundos.
+          Luego toca <span class="ui">Imprimir todas las etiquetas</span> —o marca cajas y usa <span class="ui">Imprimir seleccionadas</span>.</p>
           <p>Verás una barra de avance <em>“0 de N… imprimiendo”</em>. Al llegar al 100%, listo.</p>
-          <p><b>Modo B:</b> igual, pero quien imprime es la estación <span class="ui">EstacionZebra.exe</span> en la PC de la Zebra.</p>
+          <p>Si la Zebra está en otra PC es igual: quien imprime es la estación de esa PC.</p>
         </div></li>
       </ol>
     </section>
@@ -201,7 +201,7 @@
     </section>
 
     <section>
-      <div class="sec-head"><span class="sec-kicker">05</span><h2>Instalar la estación (solo Modo B, una vez por PC)</h2></div>
+      <div class="sec-head"><span class="sec-kicker">05</span><h2>Instalar la estación (una vez por PC)</h2></div>
       <div class="download">
         <div>
           <p class="lbl">Descarga · siempre la última versión</p>
@@ -214,8 +214,8 @@
           <li style="margin-bottom:8px">En la <b>PC que tiene la Zebra</b>, abre el enlace de arriba y descarga el programa.</li>
           <li style="margin-bottom:8px">Cópialo al Escritorio y dale <b>doble clic</b>. Si Windows muestra
             <em>“Windows protegió tu PC”</em>: toca <span class="ui">Más información → Ejecutar de todas formas</span> (es normal).</li>
-          <li style="margin-bottom:8px">Se abre una ventana negra: <em>“Zebra detectada automáticamente… Revisando cada 5s”</em>.
-            <b>Déjala abierta</b>: mientras esté abierta, imprime sola.</li>
+          <li style="margin-bottom:8px">Se abre una ventana negra: <em>“Zebra detectada automáticamente… Servicio local para la pagina web”</em>.
+            <b>Déjala abierta</b>: mientras esté abierta, la web imprime por el driver normal de Windows. Si tienes varias impresoras, elige la Zebra desde el botón 🖨 de la web.</li>
           <li>Para que arranque al prender la PC: <kbd>Windows</kbd> + <kbd>R</kbd> →
             escribe <kbd>shell:startup</kbd> → Enter → pega ahí un acceso directo del <span class="ui">.exe</span>.</li>
         </ol>
@@ -228,7 +228,7 @@
         <table>
           <thead><tr><th>Síntoma</th><th>Qué hacer</th></tr></thead>
           <tbody>
-            <tr><td>No imprime nada</td><td>Revisa que la Zebra esté <b>encendida, con papel y cable USB</b>. En Modo A, que el botón diga <em>“Zebra conectada”</em>. En Modo B, que la ventana negra de la estación esté <b>abierta</b>.</td></tr>
+            <tr><td>No imprime nada</td><td>Revisa que la Zebra esté <b>encendida, con papel y cable USB</b>. Que la ventana negra de <span class="ui">EstacionZebra.exe</span> esté abierta y el botón 🖨 de la web muestre el nombre de tu impresora en verde.</td></tr>
             <tr><td>No aparece la Zebra al “Conectar”</td><td>Usa <b>Chrome o Edge</b> (no Safari/Firefox). La impresora debe estar prendida y conectada <b>antes</b> de tocar el botón.</td></tr>
             <tr><td>La validación sale con errores</td><td>El pedido <b>no puede facturarse</b> así. Revisa precios, existencias o SKU, o avisa a tu supervisor.</td></tr>
             <tr><td>“OC duplicada” / rechazo</td><td>Esa Orden de Compra ya se facturó. <b>1 OC = 1 factura.</b> Búscala en la pestaña <span class="ui">Pedidos</span>.</td></tr>

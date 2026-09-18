@@ -7,6 +7,12 @@ etiquetas que imprimir, las jala, las manda a la Zebra por USB, y reporta.
 
 Asi no hay que abrir puertos en tu red ni exponer nada.
 
+ADEMAS expone un servicio LOCAL (solo en esta PC, http://127.0.0.1:9101) para
+que la pagina web imprima DIRECTO a traves del driver de Windows de la Zebra
+(ZDesigner o el que tenga instalado). Con esto ya no hace falta cambiar el
+driver a WinUSB ni tocar el puerto USB000: la impresora se queda tal cual la
+instalo Windows. La pagina detecta sola la estacion y manda las etiquetas aqui.
+
 INSTALACION (en la PC con la Zebra):
   1. Instalar Python 3.10+  (python.org)  -- o usar el .exe (ver abajo)
   2. pip install pywin32 requests
@@ -31,6 +37,31 @@ ESTACION     = "zebra-01"                  # id de esta PC/impresora
 PRINTER_NAME = ""                          # vacio = auto-detecta la Zebra (GK420/ZDesigner)
 POLL_SEGUNDOS = 5                          # cada cuanto pregunta por trabajo
 MAX_INTENTOS = 3                           # reintentos por etiqueta
+LOCAL_PUERTO = 9101                        # servicio local para la pagina web (solo 127.0.0.1)
+VERSION = "1.1"
+
+import os
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "estacion.json")
+
+def cargar_config():
+    """Lee estacion.json (junto al .exe) si existe: {"printer": "...", "estacion": "..."}."""
+    global PRINTER_NAME, ESTACION
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            c = json.load(f)
+        if c.get("printer"):
+            PRINTER_NAME = c["printer"]
+        if c.get("estacion"):
+            ESTACION = c["estacion"]
+    except Exception:
+        pass
+
+def guardar_config():
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump({"printer": PRINTER_NAME, "estacion": ESTACION}, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"  (no se pudo guardar estacion.json: {e})")
 
 # ====== Dependencias opcionales ======
 try:
@@ -151,12 +182,112 @@ def procesar(job):
     print(f"  Trabajo terminado: {impresas} impresas, {fallidas} fallidas")
 
 
+# ====== Servicio local para la pagina web (driver de Windows, sin WinUSB) ======
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+_lock_impresion = threading.Lock()
+
+class _Local(BaseHTTPRequestHandler):
+    server_version = "EstacionZebra/" + VERSION
+
+    def log_message(self, fmt, *args):   # silencio: no llenar la consola con cada request
+        pass
+
+    def _cors(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        # Chrome exige esto para que una pagina https hable con 127.0.0.1 (Private Network Access)
+        self.send_header("Access-Control-Allow-Private-Network", "true")
+        self.send_header("Cache-Control", "no-store")
+
+    def _json(self, code, obj):
+        body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
+        self.send_response(code)
+        self._cors()
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self._cors()
+        self.end_headers()
+
+    def do_GET(self):
+        if self.path.startswith("/estado"):
+            return self._json(200, {"ok": True, "version": VERSION, "estacion": ESTACION,
+                                    "impresora": PRINTER_NAME, "impresoras": listar_impresoras()})
+        self._json(404, {"error": "no existe"})
+
+    def do_POST(self):
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            datos = json.loads(self.rfile.read(n).decode("utf-8") or "{}")
+        except Exception as e:
+            return self._json(400, {"error": f"JSON invalido: {e}"})
+
+        if self.path.startswith("/impresora"):
+            global PRINTER_NAME
+            nombre = (datos.get("nombre") or "").strip()
+            if nombre and nombre not in listar_impresoras():
+                return self._json(400, {"error": f"No existe la impresora '{nombre}' en Windows"})
+            PRINTER_NAME = nombre or autodetectar_zebra()
+            guardar_config()
+            print(f">> Impresora cambiada desde la pagina: {PRINTER_NAME}")
+            return self._json(200, {"ok": True, "impresora": PRINTER_NAME})
+
+        if self.path.startswith("/imprimir"):
+            etiquetas = datos.get("etiquetas") or []
+            printer = (datos.get("impresora") or PRINTER_NAME or "").strip()
+            if not printer:
+                return self._json(400, {"error": "No hay impresora Zebra configurada en la estacion"})
+            impresas, fallidas, errores = 0, 0, []
+            with _lock_impresion:
+                for i, et in enumerate(etiquetas, 1):
+                    zpl = et.get("zpl") if isinstance(et, dict) else str(et)
+                    if not zpl:
+                        fallidas += 1; errores.append(f"etiqueta {i}: sin ZPL"); continue
+                    ultimo = ""
+                    for intento in range(1, MAX_INTENTOS + 1):
+                        try:
+                            imprimir_raw(zpl, printer); impresas += 1; break
+                        except Exception as e:
+                            ultimo = str(e); time.sleep(0.3 * intento)
+                    else:
+                        fallidas += 1; errores.append(f"etiqueta {i}: {ultimo}")
+                        if fallidas >= 3 and impresas == 0:
+                            errores.append("La impresora no responde; se detuvo el lote")
+                            break
+            if impresas:
+                print(f"  Pagina web -> {printer}: {impresas} etiquetas" + (f", {fallidas} fallidas" if fallidas else ""))
+            return self._json(200, {"ok": fallidas == 0, "impresas": impresas, "fallidas": fallidas,
+                                    "errores": errores[:10], "impresora": printer})
+        self._json(404, {"error": "no existe"})
+
+
+def iniciar_servicio_local():
+    """Arranca el servicio en 127.0.0.1 (nunca en la red) en un hilo aparte."""
+    try:
+        srv = ThreadingHTTPServer(("127.0.0.1", LOCAL_PUERTO), _Local)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        print(f"Servicio local para la pagina web: http://127.0.0.1:{LOCAL_PUERTO}  (imprime por el driver de Windows)")
+        return True
+    except OSError as e:
+        print(f"!! No se pudo abrir el puerto local {LOCAL_PUERTO}: {e}")
+        print("   (probablemente ya hay otra EstacionZebra abierta; cierra la otra ventana)")
+        return False
+
+
 # ====== Loop principal ======
 def main():
     global PRINTER_NAME
     print("=" * 55)
-    print(" ESTACION DE IMPRESION ZEBRA -- jala trabajos del backend")
+    print(f" ESTACION DE IMPRESION ZEBRA v{VERSION} -- driver de Windows, sin WinUSB")
     print("=" * 55)
+    cargar_config()
     print("\nImpresoras detectadas:")
     for p in listar_impresoras():
         print("   -", p)
@@ -170,7 +301,8 @@ def main():
         print(f"\n>> Usando impresora: {PRINTER_NAME}")
     print(f"\nBackend: {BACKEND_URL}")
     print(f"Estacion: {ESTACION} | Revisando cada {POLL_SEGUNDOS}s")
-    print("Ctrl+C para detener.\n")
+    iniciar_servicio_local()
+    print("Deja esta ventana abierta. La pagina web imprimira directo aqui. Ctrl+C para detener.\n")
 
     while True:
         try:

@@ -1275,6 +1275,7 @@ async function imprimirReal(desde,hasta){
    pedido, para un rango, o para una selección manual de cajas) */
 async function encolarYSeguir(etiquetas){
   if(!etiquetas.length) return;
+  if(LOCAL_OK) return imprimirLocalEstacion(etiquetas, pedido&&pedido.encabezado.num_orden_compra);
   if(USB_DEV) return imprimirLocalUSB(etiquetas, pedido&&pedido.encabezado.num_orden_compra);
   const total=etiquetas.length;
   document.getElementById('print-bg').classList.add('open');
@@ -1397,14 +1398,79 @@ function hacerArrastrable(el,prop){
   });
 }
 
+/* ===== Impresión por la ESTACIÓN LOCAL (EstacionZebra.exe en esta PC) =====
+   La estación imprime a través del driver de Windows de la Zebra (ZDesigner o el
+   que esté instalado). No hay que cambiar el driver a WinUSB ni tocar el puerto
+   USB: la página detecta la estación en http://127.0.0.1:9101 y le manda el ZPL. */
+const LOCAL_URL='http://127.0.0.1:9101';
+let LOCAL_OK=false, LOCAL_INFO=null, LOCAL_CANCEL=false, LOCAL_PRINTING=false;
+async function detectarEstacionLocal(){
+  try{
+    const c=new AbortController(); const t=setTimeout(()=>c.abort(),1500);
+    const r=await fetch(LOCAL_URL+'/estado',{signal:c.signal,cache:'no-store'}); clearTimeout(t);
+    const d=await r.json(); LOCAL_OK=!!d.ok; LOCAL_INFO=d;
+  }catch(e){ LOCAL_OK=false; LOCAL_INFO=null; }
+  actualizarUSBui();
+  return LOCAL_OK;
+}
+async function elegirImpresoraLocal(){
+  if(!LOCAL_INFO) return;
+  const lista=(LOCAL_INFO.impresoras||[]).filter(n=>!/^\[/.test(n));
+  if(!lista.length){ alert('La estación no ve ninguna impresora instalada en Windows.'); return; }
+  const actual=LOCAL_INFO.impresora||'';
+  const msg='Impresoras instaladas en esta PC:\n\n'+lista.map((n,i)=>`${i+1}. ${n}${n===actual?'   ← actual':''}`).join('\n')+'\n\nEscribe el número de la impresora Zebra que quieres usar:';
+  const resp=prompt(msg, String(Math.max(1,lista.indexOf(actual)+1)));
+  if(resp===null) return;
+  const n=parseInt(resp,10); if(!(n>=1&&n<=lista.length)){ alert('Número inválido.'); return; }
+  try{
+    const r=await fetch(LOCAL_URL+'/impresora',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:lista[n-1]})});
+    const d=await r.json(); if(d.error){ alert(d.error); return; }
+    await detectarEstacionLocal();
+  }catch(e){ alert('No se pudo cambiar la impresora: '+e.message); }
+}
+/* imprime una lista de etiquetas por la estación local, en lotes, con avance y cancelación */
+async function imprimirLocalEstacion(etiquetas, oc){
+  const total=etiquetas.length; if(!total) return;
+  LOCAL_PRINTING=true; LOCAL_CANCEL=false;
+  const g=id=>document.getElementById(id);
+  g('print-bg').classList.add('open');
+  g('print-title').textContent='Imprimiendo etiquetas';
+  g('print-sub').textContent=`${oc?('OC '+oc+' · '):''}${total} etiquetas · ${LOCAL_INFO&&LOCAL_INFO.impresora?LOCAL_INFO.impresora:'estación local'}…`;
+  g('reprint-row').style.display='none';
+  const cb=g('print-cancel'); if(cb){cb.style.display='';cb.disabled=false;cb.textContent='Cancelar impresión';}
+  const LOTE=5; let hechas=0, fallidas=0, ultimoErr='';
+  for(let i=0;i<total && !LOCAL_CANCEL;i+=LOTE){
+    const lote=etiquetas.slice(i,i+LOTE).map(e=>({zpl:e.zpl}));
+    try{
+      const r=await fetch(LOCAL_URL+'/imprimir',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({etiquetas:lote})});
+      const d=await r.json();
+      hechas+=d.impresas||0; fallidas+=d.fallidas||0;
+      if(d.errores&&d.errores.length) ultimoErr=d.errores[d.errores.length-1];
+      if((d.fallidas||0)>0 && (d.impresas||0)===0){ break; }   // la impresora no responde
+    }catch(e){ ultimoErr='Se perdió la conexión con la estación local: '+e.message; fallidas+=lote.length; break; }
+    const p=Math.round((hechas+fallidas)/total*100);
+    g('print-bar').style.width=p+'%'; g('print-count').textContent=`${hechas+fallidas} de ${total}`; g('print-pct').textContent=p+'%';
+  }
+  LOCAL_PRINTING=false; if(cb) cb.style.display='none';
+  if(LOCAL_CANCEL){ g('print-title').textContent='Impresión cancelada'; g('print-sub').textContent=`Se detuvo tras ${hechas} etiquetas.`; }
+  else if(fallidas){ g('print-title').textContent='Impresión con errores'; g('print-sub').textContent=`${hechas} impresas, ${fallidas} fallidas. ${ultimoErr}`; }
+  else { g('print-title').textContent='Impresión completa'; g('print-sub').textContent=`${total} etiquetas impresas en ${LOCAL_INFO&&LOCAL_INFO.impresora?LOCAL_INFO.impresora:'la Zebra'}.`; }
+}
+
 /* ===== Impresión directa por WebUSB (sin exe) ===== */
 let USB_DEV=null, USB_EPOUT=null, USB_INTF=null, USB_PRINTING=false, USB_CANCEL=false;
 const ZEBRA_VID=0x0A5F;
 function usbSoportado(){ return !!(navigator.usb); }
 function actualizarUSBui(){
   const b=document.getElementById('usb-btn'); if(!b) return;
-  if(USB_DEV){ b.textContent='🖨 Zebra conectada'; b.style.background='rgba(52,211,153,.28)'; }
-  else { b.textContent='🖨 Conectar Zebra'; b.style.background=''; }
+  if(LOCAL_OK){
+    const nom=(LOCAL_INFO&&LOCAL_INFO.impresora)||'';
+    b.textContent=nom?('🖨 '+nom):'🖨 Estación lista · elige impresora';
+    b.title='Imprime por el driver de Windows a través de EstacionZebra.exe. Toca para cambiar de impresora.';
+    b.style.background=nom?'rgba(52,211,153,.28)':'rgba(251,191,36,.28)';
+  }
+  else if(USB_DEV){ b.textContent='🖨 Zebra conectada (USB)'; b.style.background='rgba(52,211,153,.28)'; }
+  else { b.textContent='🖨 Conectar Zebra'; b.style.background=''; b.title='Abre EstacionZebra.exe en esta PC (recomendado) o conecta por WebUSB'; }
 }
 async function _abrirUSB(dev){
   await dev.open();
@@ -1417,6 +1483,9 @@ async function _abrirUSB(dev){
   return false;
 }
 async function conectarUSB(){
+  if(LOCAL_OK) return elegirImpresoraLocal();
+  if(await detectarEstacionLocal()) return elegirImpresoraLocal();
+  if(!confirm('No encuentro EstacionZebra.exe corriendo en esta PC.\n\nLo recomendado es abrir EstacionZebra.exe (imprime con el driver normal de Windows, sin cambiar nada del USB).\n\n¿Quieres intentar la conexión directa por WebUSB de todos modos? (requiere el driver WinUSB)')) return;
   if(!usbSoportado()){ alert('Tu navegador no soporta WebUSB.\nUsa Google Chrome o Microsoft Edge en la PC de la Zebra.'); return; }
   try{
     const dev=await navigator.usb.requestDevice({filters:[{vendorId:ZEBRA_VID}]});
@@ -1425,7 +1494,7 @@ async function conectarUSB(){
     actualizarUSBui();
   }catch(e){
     if(e.name==='NotFoundError') return; // canceló el diálogo
-    alert('No se pudo conectar la Zebra: '+e.message+'\n\nEn Windows suele deberse al driver: la impresora tiene que estar como dispositivo WinUSB para que el navegador la use. Te explico cómo.');
+    alert('No se pudo conectar por WebUSB: '+e.message+'\n\nNo hace falta cambiar el driver: abre EstacionZebra.exe en esta PC y la página imprimirá por el driver de Windows.');
   }
 }
 async function reconectarUSBGuardada(){
@@ -1498,6 +1567,7 @@ function seguirAvance(jobId,total){
   },1500);
 }
 async function cancelarImpresionActual(){
+  if(LOCAL_PRINTING){ LOCAL_CANCEL=true; return; } // cancelación en la estación local
   if(USB_PRINTING){ USB_CANCEL=true; return; }   // cancelación local inmediata
   if(!JOB_ACTUAL){return;}
   const cb=document.getElementById('print-cancel'); if(cb){cb.disabled=true;cb.textContent='Cancelando…';}
@@ -1653,6 +1723,7 @@ function hebPreview(){
 }
 function imprimirHEBlista(etiquetas){
   if(!etiquetas.length){alert('No hay etiquetas para imprimir.');return;}
+  if(LOCAL_OK) return imprimirLocalEstacion(etiquetas, HEB&&HEB.oc);
   if(USB_DEV) return imprimirLocalUSB(etiquetas, HEB&&HEB.oc);
   document.getElementById('print-bg').classList.add('open');
   document.getElementById('print-title').textContent='Imprimiendo etiquetas';
@@ -1774,6 +1845,7 @@ document.querySelectorAll('#topnav .navlink').forEach(b=>b.onclick=()=>showView(
 try{
   const ub=document.getElementById('usb-btn');
   if(ub){ ub.onclick=conectarUSB; if(!usbSoportado()) ub.title='Requiere Chrome/Edge'; }
+  detectarEstacionLocal(); setInterval(detectarEstacionLocal, 20000);
   reconectarUSBGuardada();
 }catch(e){ console.warn('USB init:', e); }
 /* selector de cliente + HEB */
