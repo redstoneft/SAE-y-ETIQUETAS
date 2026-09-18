@@ -1470,7 +1470,7 @@ function actualizarUSBui(){
     b.style.background=nom?'rgba(52,211,153,.28)':'rgba(251,191,36,.28)';
   }
   else if(USB_DEV){ b.textContent='🖨 Zebra conectada (USB)'; b.style.background='rgba(52,211,153,.28)'; }
-  else { b.textContent='🖨 Conectar Zebra'; b.style.background=''; b.title='Abre EstacionZebra.exe en esta PC (recomendado) o conecta por WebUSB'; }
+  else { b.textContent='🖨 Conectar Zebra'; b.style.background=''; b.title='Sin estación local: Imprimir manda el trabajo a la cola (estación anterior) o abre EstacionZebra.exe v1.1 en esta PC'; }
 }
 async function _abrirUSB(dev){
   await dev.open();
@@ -1485,7 +1485,7 @@ async function _abrirUSB(dev){
 async function conectarUSB(){
   if(LOCAL_OK) return elegirImpresoraLocal();
   if(await detectarEstacionLocal()) return elegirImpresoraLocal();
-  if(!confirm('No encuentro EstacionZebra.exe corriendo en esta PC.\n\nLo recomendado es abrir EstacionZebra.exe (imprime con el driver normal de Windows, sin cambiar nada del USB).\n\n¿Quieres intentar la conexión directa por WebUSB de todos modos? (requiere el driver WinUSB)')) return;
+  if(!confirm('No encuentro la EstacionZebra nueva (v1.1) corriendo en esta PC.\n\n• Si tienes la estación ANTERIOR abierta en la PC de la Zebra, no hagas nada: al tocar Imprimir el trabajo se manda a la cola y ella lo imprime como siempre.\n• Lo recomendado es bajar EstacionZebra.exe v1.1 (imprime con el driver normal de Windows, sin cambiar nada del USB).\n\n¿Quieres intentar la conexión directa por WebUSB de todos modos? (requiere el driver WinUSB)')) return;
   if(!usbSoportado()){ alert('Tu navegador no soporta WebUSB.\nUsa Google Chrome o Microsoft Edge en la PC de la Zebra.'); return; }
   try{
     const dev=await navigator.usb.requestDevice({filters:[{vendorId:ZEBRA_VID}]});
@@ -1701,6 +1701,11 @@ function renderHEB(){
   $('#card-heb').style.display='block';
   $('#heb-title').textContent = 'Pedido '+({ALSUPER:'Alsuper',CASALEY:'Casa Ley'}[HEB.cliente]||'HEB');
   $('#heb-meta').textContent=`${HEB.oc?('OC '+HEB.oc+' · '):''}${HEB.resumen.productos} productos · ${HEB.resumen.etiquetas} etiquetas`;
+  // renglones del PDF que parecen artículos pero no se pudieron leer: se avisan, para que no falte una etiqueta sin que nadie lo note
+  const nr=HEB.no_reconocidas||[]; let av=document.getElementById('heb-noreco');
+  if(!av){ av=document.createElement('div'); av.id='heb-noreco'; av.style.cssText='margin:8px 0 4px;padding:8px 12px;border-radius:8px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;font-size:12px;display:none'; $('#heb-meta').insertAdjacentElement('afterend',av); }
+  if(nr.length){ av.style.display='block'; av.innerHTML='<b>Atención:</b> '+nr.length+' renglón(es) del PDF no se pudieron leer y NO tienen etiqueta. Mándame el PDF para corregir el lector.<br>'+nr.map(x=>'<code style="font-size:11px">'+x.replace(/</g,'&lt;')+'</code>').join('<br>'); }
+  else av.style.display='none';
   $('#heb-tbody').innerHTML=HEB.lineas.map((l,i)=>`<tr>
     <td><input type="checkbox" class="heb-chk" data-i="${i}"></td>
     <td class="sku">${l.sku||l.articulo||l.modelo}</td><td>${l.descripcion}</td>

@@ -243,6 +243,7 @@ app.post("/api/alsuper/upload", requireAuth, upload.single("file"), async (req, 
       ok: true, cliente: "ALSUPER",
       oc: pedido.encabezado.num_orden_compra,
       lineas: pedido.lineas,
+      no_reconocidas: pedido.no_reconocidas || [],
       resumen: pedido.totales,
     });
   } catch (e) {
