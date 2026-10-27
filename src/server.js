@@ -27,6 +27,7 @@ const { generarArchivoSAE, CONFIG_WALMART } = require("./lib/saeExport");
 const { extraerHEB, generarEtiquetasHEB } = require("./lib/hebExtractor");
 const { extraerAlsuper, generarEtiquetasAlsuper } = require("./lib/alsuperExtractor");
 const { extraerCasaLey, generarEtiquetasCasaLey } = require("./lib/casaleyExtractor");
+const { extraerCoppel } = require("./lib/coppelExtractor");
 const { AUTH_ENABLED, login, requireAuth } = require("./lib/auth");
 const db = require("./lib/db");
 
@@ -244,6 +245,36 @@ app.post("/api/alsuper/upload", requireAuth, upload.single("file"), async (req, 
       oc: pedido.encabezado.num_orden_compra,
       lineas: pedido.lineas,
       no_reconocidas: pedido.no_reconocidas || [],
+      resumen: pedido.totales,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
+ * Sube el REPORTE DE PEDIDOS de COPPEL (Excel): extrae las líneas por CEDIS.
+ * COPPEL llega en .xlsx y NO trae código de barras / color / descripción formal:
+ * esos campos (y las piezas por caja) se completan en el cliente con un catálogo
+ * por código que el navegador recuerda. Aquí solo devolvemos los renglones crudos:
+ * una línea por CEDIS con el total de piezas; el cliente divide por caja y arma el ZPL.
+ */
+app.post("/api/coppel/upload", requireAuth, upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Falta el Excel del pedido COPPEL" });
+    let pedido;
+    try { pedido = extraerCoppel(req.file.buffer); }
+    catch (e) { return res.status(422).json({ error: "No se pudo leer el Excel de COPPEL", detalle: e.message }); }
+    if (!pedido.lineas.length) return res.status(422).json({ error: "No se encontraron renglones en el reporte COPPEL" });
+    // productos distintos (con su descripción del pedido) para armar el catálogo en el cliente
+    const vistos = {};
+    const productos = pedido.lineas.filter((l) => !vistos[l.codigo] && (vistos[l.codigo] = 1))
+      .map((l) => ({ codigo: l.codigo, descr_pedido: l.descr_pedido }));
+    res.json({
+      ok: true, cliente: "COPPEL",
+      encabezado: pedido.encabezado,
+      lineas: pedido.lineas,       // {codigo,cedis,cedis_nombre,pedido,piezas(total),descr_pedido}
+      productos,
       resumen: pedido.totales,
     });
   } catch (e) {

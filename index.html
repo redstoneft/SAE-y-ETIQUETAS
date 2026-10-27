@@ -494,6 +494,7 @@
           <button class="cli-btn" data-cli="HEB">HEB</button>
           <button class="cli-btn" data-cli="ALSUPER">Alsuper</button>
           <button class="cli-btn" data-cli="CASALEY">Casa Ley</button>
+          <button class="cli-btn" data-cli="COPPEL">Coppel</button>
         </div>
         <div class="drop" id="drop">
           <div class="up">↑</div>
@@ -546,6 +547,27 @@
         <div class="lblsel-actions">
           <button class="btn" id="heb-print-sel">Imprimir seleccionadas (0)</button>
           <button class="btn primary" id="heb-print-all">Imprimir todas las etiquetas</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel de resultados COPPEL (Excel) -->
+    <div class="card" id="card-coppel" style="display:none">
+      <h3><span id="coppel-title">Pedido Coppel</span><span class="meta" id="coppel-meta"></span></h3>
+      <div class="pad">
+        <div id="coppel-aviso" style="margin:0 0 10px;padding:8px 12px;border-radius:8px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;font-size:12px;display:none"></div>
+
+        <div class="lblgrid"><div class="lblcard"><div class="lh"><span>Etiqueta</span></div>
+          <div class="lp" id="coppel-preview"><small style="color:var(--steel-l)">generando…</small></div></div></div>
+
+        <div class="lblsel-bar"><b>Productos del pedido</b>
+          <span class="lblsel-hint">El reporte no trae código de barras, color ni descripción. Complétalos una vez por código: se <b>recuerdan</b> para los próximos pedidos. Pzs/caja parte el total del CEDIS en varias etiquetas.</span></div>
+        <div class="tbl-wrap" style="margin-top:10px"><table class="ptable"><thead><tr>
+          <th>Código</th><th>Desc. del pedido</th><th>Código de barras</th><th>Descripción etiqueta</th><th>Color</th><th class="r">Pzs/caja</th>
+        </tr></thead><tbody id="coppel-cat"></tbody></table></div>
+
+        <div class="lblsel-actions">
+          <button class="btn primary" id="coppel-print-all" disabled>Imprimir todas las etiquetas</button>
         </div>
       </div>
     </div>
@@ -1598,6 +1620,7 @@ async function subir(file){
   if(!API_BASE){alert('Modo demo: la extracción real ocurre en el backend.\nUsa "Cargar pedido de ejemplo" para ver el flujo completo.');return;}
   const esJsonWMS=/\.json$/i.test(file.name||'');
   if(esJsonWMS){ if(CLIENTE!=='WMT') setCliente('WMT'); }      // los pedidos del WMS se ven en el flujo general
+  else if(CLIENTE==='COPPEL') return subirCoppel(file);        // COPPEL llega en Excel, flujo propio
   else if(CLIENTE!=='WMT') return subirHEB(file);
   const fd=new FormData();fd.append('file',file);
   try{
@@ -1675,16 +1698,116 @@ function construirEtiquetasHEB(items){
   });
   return out;
 }
+/* ===== COPPEL (Excel: pedido -> completar faltantes -> etiquetas) ===== */
+let COPPEL=null;
+function coppelCatGet(){ try{return JSON.parse(localStorage.getItem('coppelcat')||'{}')}catch(e){return{}} }
+function coppelCatSet(c){ try{localStorage.setItem('coppelcat',JSON.stringify(c))}catch(e){} }
+async function subirCoppel(file){
+  const fd=new FormData();fd.append('file',file);
+  try{
+    const r=await fetch(API_BASE+'/api/coppel/upload',{method:'POST',body:fd});
+    const d=await r.json();
+    if(!r.ok){alert(d.error||'No se pudo leer el Excel de Coppel');return;}
+    COPPEL=d; renderCoppel();
+  }catch(e){alert('No se pudo contactar el backend: '+e.message);}
+}
+function coppelProductos(){
+  const seen={},out=[];
+  (COPPEL.lineas||[]).forEach(l=>{if(!seen[l.codigo]){seen[l.codigo]=1;out.push({codigo:l.codigo,descr_pedido:l.descr_pedido||''});}});
+  return out;
+}
+function coppelFaltan(){
+  const cat=coppelCatGet();
+  return coppelProductos().filter(p=>{const c=cat[p.codigo]||{};return !c.gtin||!c.descr||!c.color;}).map(p=>p.codigo);
+}
+function coppelEtiquetasCount(){
+  const cat=coppelCatGet();let n=0;
+  (COPPEL.lineas||[]).forEach(l=>{const pc=Number((cat[l.codigo]||{}).caja)||0;n+=pc>0?Math.max(1,Math.ceil((l.piezas||0)/pc)):1;});
+  return n;
+}
+function renderCoppel(){
+  $('#card-coppel').style.display='block';
+  const t=COPPEL.resumen||{};
+  $('#coppel-meta').textContent=`${t.pedidos||0} pedidos · ${t.cedis||0} CEDIS · ${t.productos||0} producto(s) · ${t.etiquetas||0} CEDIS-renglón`;
+  const cat=coppelCatGet();
+  $('#coppel-cat').innerHTML=coppelProductos().map(p=>{
+    const c=cat[p.codigo]||{};
+    const esc=s=>String(s||'').replace(/"/g,'&quot;');
+    const inp=(k,ph,val,w,extra='')=>`<input class="coppel-f" data-cod="${p.codigo}" data-k="${k}" value="${esc(val)}" placeholder="${ph}" ${extra} style="width:${w};padding:5px 6px;border:1px solid var(--line);border-radius:6px">`;
+    return `<tr><td class="sku">${p.codigo}</td><td>${String(p.descr_pedido).replace(/</g,'&lt;')}</td>
+      <td>${inp('gtin','código de barras',c.gtin,'140px')}</td>
+      <td>${inp('descr','descripción',c.descr,'180px')}</td>
+      <td>${inp('color','color',c.color,'120px')}</td>
+      <td class="r"><input class="coppel-f" data-cod="${p.codigo}" data-k="caja" type="number" min="0" value="${c.caja||''}" placeholder="total" style="width:70px;text-align:right;padding:5px 6px;border:1px solid var(--line);border-radius:6px"></td></tr>`;
+  }).join('');
+  $('#coppel-cat').querySelectorAll('.coppel-f').forEach(i=>i.oninput=coppelEdit);
+  $('#coppel-print-all').onclick=()=>{ if(coppelFaltan().length){alert('Faltan datos por completar.');return;} imprimirHEBlista(construirEtiquetasCoppel()); };
+  coppelStats(); coppelPreview();
+}
+function coppelEdit(e){
+  const cat=coppelCatGet(); const cod=e.target.dataset.cod,k=e.target.dataset.k;
+  cat[cod]=cat[cod]||{}; cat[cod][k]=e.target.value; coppelCatSet(cat);
+  coppelStats(); coppelPreview();
+}
+function coppelStats(){
+  const falt=coppelFaltan(), total=coppelEtiquetasCount(), av=$('#coppel-aviso');
+  if(falt.length){av.style.display='block';av.innerHTML='<b>Faltan datos</b> de '+falt.length+' código(s): '+falt.join(', ')+'. Completa código de barras, descripción y color para poder imprimir.';}
+  else av.style.display='none';
+  const b=$('#coppel-print-all'); b.disabled=falt.length>0||total===0;
+  b.textContent='Imprimir todas las etiquetas'+(total?(' ('+total+')'):'');
+}
+function zplCoppelLocal(l){
+  const A=812,LL=671,X=28,FS=26;
+  const ean=String(l.gtin||'').replace(/\D/g,'');
+  const words=String(l.descripcion||l.descr_pedido||'').split(/\s+/);const dl=[];let cur='';
+  words.forEach(w=>{if((cur+' '+w).trim().length>36){dl.push(cur.trim());cur=w;}else cur=(cur+' '+w).trim();});
+  if(cur)dl.push(cur);
+  let y=26;const ln=(t,big)=>{const fs=big?46:FS;const s=`^FO${X},${y}^A0N,${fs},${fs}^FD${t}^FS\n`;y+=big?56:36;return s;};
+  const enc=COPPEL.encabezado||{};
+  let z=`^XA\n^CI28\n^PW${A}\n^LL${LL}\n^LH0,0\n`;
+  z+=ln((l.cedis+' '+(l.cedis_nombre||'')).trim(),true);
+  z+=ln('PROVEEDOR: '+(enc.proveedor_nombre||'FUTUREENTS TECH, S.A DE C.V'));
+  z+=ln('NO. PROVEEDOR: '+(enc.num_proveedor||'33456'));
+  z+=ln('NO. DE PEDIDO: '+(l.pedido||''));
+  if(ean){z+=`^FO${X},${y}^BY2^BEN,70,Y,N^FD${ean}^FS\n`;y+=120;}
+  z+=ln('CODIGO ART: '+l.codigo+'        PIEZAS: '+l.piezas);
+  if(l.color)z+=ln('COLOR: '+l.color);
+  (dl.length?dl:['']).forEach(t=>{z+=ln(t);});
+  z+='^XZ';return z;
+}
+function partirCajas(total,porCaja){ if(!porCaja||porCaja<=0)return[total]; const o=[];let r=total;while(r>porCaja){o.push(porCaja);r-=porCaja;}if(r>0)o.push(r);return o.length?o:[total]; }
+function construirEtiquetasCoppel(){
+  const cat=coppelCatGet(); const out=[];
+  (COPPEL.lineas||[]).forEach(l=>{
+    const c=cat[l.codigo]||{};
+    partirCajas(l.piezas||0, Number(c.caja)||0).forEach(pz=>{
+      out.push({zpl:zplCoppelLocal({...l,piezas:pz,gtin:c.gtin||'',descripcion:c.descr||'',color:c.color||''}),sku_interno:l.codigo});
+    });
+  });
+  return out;
+}
+function coppelPreview(){
+  if(!COPPEL||!COPPEL.lineas.length)return;
+  const cat=coppelCatGet(),l0=COPPEL.lineas[0],c=cat[l0.codigo]||{};
+  const z=zplCoppelLocal({...l0,piezas:(Number(c.caja)||l0.piezas),gtin:c.gtin||'',descripcion:c.descr||'',color:c.color||''});
+  fetch(LABELARY,{method:'POST',headers:{'Accept':'image/png','Content-Type':'application/x-www-form-urlencoded'},body:z})
+    .then(r=>r.ok?r.blob():Promise.reject()).then(b=>{$('#coppel-preview').innerHTML=`<img src="${URL.createObjectURL(b)}">`;})
+    .catch(()=>{$('#coppel-preview').innerHTML='<small style="color:var(--steel)">preview no disponible</small>';});
+}
+
 function setCliente(cli){
   CLIENTE=cli;
-  const nombre={HEB:'HEB',ALSUPER:'Alsuper',CASALEY:'Casa Ley'}[cli]||'';
+  const nombre={HEB:'HEB',ALSUPER:'Alsuper',CASALEY:'Casa Ley',COPPEL:'Coppel'}[cli]||'';
   document.querySelectorAll('#cliente-sel .cli-btn').forEach(b=>b.classList.toggle('active',b.dataset.cli===cli));
   const esArchivo = cli!=='WMT';
-  $('#carga-meta').textContent = esArchivo?('PDF Orden de Compra '+nombre):'PDF de RetailLink';
-  $('#drop-title').textContent = esArchivo?('Arrastra el PDF de '+nombre):'Arrastra el PDF del pedido';
+  const esCoppel = cli==='COPPEL';
+  $('#carga-meta').textContent = esCoppel?'Excel del pedido Coppel':(esArchivo?('PDF Orden de Compra '+nombre):'PDF de RetailLink');
+  $('#drop-title').textContent = esCoppel?'Arrastra el Excel del pedido Coppel':(esArchivo?('Arrastra el PDF de '+nombre):'Arrastra el PDF del pedido');
   $('#demo').style.display = esArchivo?'none':'';
+  const fin=document.getElementById('file'); if(fin) fin.accept = esCoppel?'.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'application/pdf,application/json,.json';
   ['flow','card-lines','card-invoice','card-labels'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
   $('#card-heb').style.display='none';
+  $('#card-coppel').style.display='none';
   if(cli==='WMT'&&pedido) render();
 }
 async function subirHEB(file){
